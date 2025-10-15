@@ -1,34 +1,36 @@
+integrations:
+  app_store_connect: "Churppy Customer"
+
 workflows:
   ios_appstore:
     name: iOS App Store (TestFlight)
     environment:
       vars:
-        APP_ID: "com.kathryn.churppyCustomer" # ← apna bundle id likho
+        APP_ID: "com.kathryn.churppyCustomer" # apna bundle ID yahan likha rahe
+        DEVELOPMENT_TEAM_ID: "7H4229UD7R"     # apna Apple Team ID
       flutter: stable
       xcode: latest
+
     scripts:
       - name: 🔹 Clean & Get Dependencies
         script: |
           flutter clean
           flutter pub get
 
-      - name: 🔹 Build iOS Release
+      - name: 🔹 Build iOS Release (no codesign)
         script: |
           flutter build ios --release --no-codesign
 
-      - name: 🔹 Set up Keychain & Certificates
+      - name: 🔹 Set up Keychain & Fetch Certificates
         script: |
           keychain initialize
           app-store-connect fetch-signing-files "$APP_ID" \
             --type IOS_APP_STORE \
-            --create \
-            --issuer-id "$APP_STORE_ISSUER_ID" \
-            --key-id "$APP_STORE_KEY_ID" \
-            --private-key "$APP_STORE_PRIVATE_KEY"
+            --create
           keychain add-certificates
           xcode-project use-profiles
 
-      - name: 🔹 Archive App
+      - name: 🔹 Archive iOS Build
         script: |
           cd ios
           xcodebuild -workspace Runner.xcworkspace \
@@ -51,10 +53,7 @@ workflows:
       - name: 🔹 Upload to TestFlight
         script: |
           app-store-connect publish \
-            --path "$CM_BUILD_DIR/ipa/Runner.ipa" \
-            --issuer-id "$APP_STORE_ISSUER_ID" \
-            --key-id "$APP_STORE_KEY_ID" \
-            --private-key "$APP_STORE_PRIVATE_KEY"
+            --path "$CM_BUILD_DIR/ipa/Runner.ipa"
 
     artifacts:
       - build/ios/ipa/*.ipa
