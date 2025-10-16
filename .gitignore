@@ -1,20 +1,28 @@
-**/dgph
-*.mode1v3
-*.mode2v3
-*.moved-aside
-*.pbxuser
-*.perspectivev3
-**/*sync/
-.sconsign.dblite
-.tags*
-**/.vagrant/
+# ---------------------------
+# Flutter / Dart
+# ---------------------------
+.dart_tool/
+.packages
+.flutter-plugins
+.flutter-plugins-dependencies
+build/
+pubspec.lock
+
+# ---------------------------
+# IDEs
+# ---------------------------
+.idea/
+.vscode/
+*.iml
+
+# ---------------------------
+# iOS / macOS
+# ---------------------------
 **/DerivedData/
-Icon?
 **/Pods/
 **/.symlinks/
 profile
-xcuserdata
-**/.generated/
+xcuserdata/
 Flutter/App.framework
 Flutter/Flutter.framework
 Flutter/Flutter.podspec
@@ -24,11 +32,40 @@ Flutter/app.flx
 Flutter/app.zip
 Flutter/flutter_assets/
 Flutter/flutter_export_environment.sh
-ServiceDefinitions.json
-Runner/GeneratedPluginRegistrant.*
-
-# Exceptions to above rules.
+*.dSYM
+*.xcuserstate
+*.xcworkspace
+*.xcsettings
+*.pbxuser
+*.mode1v3
+*.mode2v3
+*.perspectivev3
 !default.mode1v3
 !default.mode2v3
 !default.pbxuser
 !default.perspectivev3
+
+# ---------------------------
+# Android
+# ---------------------------
+**/gradle-wrapper.jar
+**/local.properties
+**/build/
+**/.gradle/
+
+# ---------------------------
+# Node / Backend
+# ---------------------------
+node_modules/
+lib/**/node_modules/
+npm-debug.log
+yarn-error.log
+
+# ---------------------------
+# System / Misc
+# ---------------------------
+.DS_Store
+*.swp
+*.swo
+*.tmp
+*.bak
