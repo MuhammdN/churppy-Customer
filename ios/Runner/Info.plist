@@ -32,6 +32,8 @@
 	</array>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>To scan cards</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>We need your location to show nearby Churppy alerts.</string>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
@@ -53,9 +55,5 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
-	<key>NSCameraUsageDescription</key>
-<string>Scan your card to add it automatically</string>
-<key>NSCameraUsageDescription</key>
-<string>To scan cards</string>
 </dict>
 </plist>
