@@ -40,8 +40,8 @@ workflows:
       - name: Build signed IPA (auto via fetched certs)
         script: |
           echo "🔍 Listing available certs & profiles..."
-          ls -la /Users/builder/Library/MobileDevice/Certificates/ || true
-          ls -la /Users/builder/Library/MobileDevice/Provisioning\ Profiles/ || true
+          ls -la /Users/builder/Library/MobileDevice/Certificates/ 
+          ls -la /Users/builder/Library/MobileDevice/Provisioning\ Profiles/ 
 
           echo "🚀 Building and signing IPA for Churppy Customer..."
           xcodebuild -workspace ios/Runner.xcworkspace \
