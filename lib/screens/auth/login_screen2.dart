@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../ChurppyAlertsScreen.dart';
 import 'login.dart';
 
-class LoginScreen2 extends StatelessWidget {
+class LoginScreen2 extends StatefulWidget {
   const LoginScreen2({super.key});
 
   static const purple = Color(0xFF6C2FA0);
@@ -14,7 +15,51 @@ class LoginScreen2 extends StatelessWidget {
   static const vendorLogo = 'assets/images/tees_tasty_logo.png';
 
   @override
+  State<LoginScreen2> createState() => _LoginScreen2State();
+}
+
+class _LoginScreen2State extends State<LoginScreen2> {
+  bool _canShowScreen = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkVisits();
+  }
+
+  Future<void> _checkVisits() async {
+    final prefs = await SharedPreferences.getInstance();
+    int visits = prefs.getInt('login_screen2_visits') ?? 0;
+
+    // increment and save
+    visits++;
+    await prefs.setInt('login_screen2_visits', visits);
+
+    debugPrint("🟢 LoginScreen2 visits count: $visits");
+
+    if (visits >= 3 && mounted) {
+      // 🚀 Directly jump to LoginScreen before showing UI
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const LoginScreen()),
+        );
+      });
+    } else {
+      setState(() => _canShowScreen = true);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    if (!_canShowScreen) {
+      // ⏳ Blank loading view until check completes (avoids flash)
+      return const Scaffold(
+        backgroundColor: Colors.white,
+        body: Center(child: CircularProgressIndicator(color: Colors.black54)),
+      );
+    }
+
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
@@ -47,7 +92,7 @@ class LoginScreen2 extends StatelessWidget {
                               textAlign: TextAlign.center,
                               style: TextStyle(
                                 fontFamily: "Roboto",
-                                fontSize: fs(40),
+                                fontSize: fs(35),
                                 fontWeight: FontWeight.w900,
                                 letterSpacing: 0.5,
                                 color: Colors.black87,
@@ -66,7 +111,7 @@ class LoginScreen2 extends StatelessWidget {
                                 decoration: BoxDecoration(
                                   borderRadius: BorderRadius.circular(fs(18)),
                                   image: const DecorationImage(
-                                    image: AssetImage(headerBg),
+                                    image: AssetImage(LoginScreen2.headerBg),
                                     fit: BoxFit.fill,
                                   ),
                                 ),
@@ -80,7 +125,7 @@ class LoginScreen2 extends StatelessWidget {
                                   height: fs(6),
                                   margin: EdgeInsets.only(top: fs(150)),
                                   decoration: BoxDecoration(
-                                    color: purple.withOpacity(0.25),
+                                    color: LoginScreen2.purple.withOpacity(0.25),
                                     borderRadius: BorderRadius.circular(fs(12)),
                                   ),
                                 ),
@@ -112,7 +157,7 @@ class LoginScreen2 extends StatelessWidget {
                                         ),
                                         padding: EdgeInsets.all(fs(10)),
                                         child: Image.asset(
-                                          vendorLogo,
+                                          LoginScreen2.vendorLogo,
                                           width: fs(120),
                                           height: fs(80),
                                           fit: BoxFit.contain,
@@ -123,7 +168,7 @@ class LoginScreen2 extends StatelessWidget {
                                         "Someone in your area\njust ordered from Tee’s\nTasty Kitchen\nCurrently located at...",
                                         textAlign: TextAlign.center,
                                         style: TextStyle(
-                                          fontSize: fs(16),
+                                          fontSize: fs(22),
                                           fontWeight: FontWeight.w800,
                                           height: 1.25,
                                           color: Colors.black87,
@@ -142,7 +187,7 @@ class LoginScreen2 extends StatelessWidget {
                                 style: TextStyle(
                                   fontSize: fs(14),
                                   fontWeight: FontWeight.w700,
-                                  color: purple,
+                                  color: LoginScreen2.purple,
                                   decoration: TextDecoration.underline,
                                 ),
                               ),
@@ -153,7 +198,7 @@ class LoginScreen2 extends StatelessWidget {
                               height: fs(46),
                               child: FilledButton(
                                 style: FilledButton.styleFrom(
-                                  backgroundColor: green,
+                                  backgroundColor: LoginScreen2.green,
                                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(fs(12))),
                                 ),
                                 onPressed: () {
@@ -178,14 +223,14 @@ class LoginScreen2 extends StatelessWidget {
                             Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Icon(Icons.circle_outlined, size: fs(16), color: purple),
+                                Icon(Icons.access_time, size: fs(16), color: LoginScreen2.purple),
                                 SizedBox(width: fs(8)),
                                 Text(
                                   '25 Min',
                                   style: TextStyle(
                                     fontSize: fs(14),
                                     fontWeight: FontWeight.w700,
-                                    color: purple,
+                                    color: LoginScreen2.purple,
                                   ),
                                 ),
                               ],

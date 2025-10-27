@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 
@@ -17,7 +18,7 @@ class _ContactSupportScreenState extends State<ContactSupportScreen> {
   List<_Msg> _messages = [];
   int _userId = 0;
   bool _loading = true;
-  String? _profileImageUrl; // 👤 user profile image url
+  String? _profileImageUrl;
 
   final String apiUrl =
       "https://churppy.eurekawebsolutions.com/api/contact_support.php";
@@ -25,8 +26,14 @@ class _ContactSupportScreenState extends State<ContactSupportScreen> {
   @override
   void initState() {
     super.initState();
+    _enableFullScreen();
     _loadUserIdAndFetch();
     _loadUserProfile();
+  }
+
+  void _enableFullScreen() {
+    // ✅ Keep immersive fullscreen but allow top safe gesture space
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
   }
 
   Future<void> _loadUserProfile() async {
@@ -37,13 +44,9 @@ class _ContactSupportScreenState extends State<ContactSupportScreen> {
       final userMap = jsonDecode(userString);
       _userId = userMap['id'];
 
-      debugPrint("🟢 User ID from prefs: $_userId");
-
       if (_userId != null) {
         final url =
             "https://churppy.eurekawebsolutions.com/api/user.php?id=$_userId";
-        debugPrint("🌍 Fetching user profile from $url");
-
         final response = await http.get(Uri.parse(url));
         if (response.statusCode == 200) {
           final data = jsonDecode(response.body);
@@ -67,8 +70,6 @@ class _ContactSupportScreenState extends State<ContactSupportScreen> {
       _profileImageUrl = userMap['image'];
     }
 
-    debugPrint("👤 Loaded user_id: $_userId, image: $_profileImageUrl");
-
     if (_userId != 0) {
       await _fetchMessages();
     }
@@ -79,8 +80,6 @@ class _ContactSupportScreenState extends State<ContactSupportScreen> {
   Future<void> _fetchMessages() async {
     try {
       final url = "$apiUrl?user_id=$_userId";
-      debugPrint("🌍 Fetching messages from $url");
-
       final res = await http.get(Uri.parse(url));
       if (res.statusCode == 200) {
         final body = jsonDecode(res.body);
@@ -109,8 +108,6 @@ class _ContactSupportScreenState extends State<ContactSupportScreen> {
         "message": text,
       });
 
-      debugPrint("📤 Sending message: $body");
-
       final res = await http.post(
         Uri.parse(apiUrl),
         headers: {"Content-Type": "application/json"},
@@ -119,9 +116,7 @@ class _ContactSupportScreenState extends State<ContactSupportScreen> {
 
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
-        if (data['status'] == 'success') {
-          debugPrint("✅ Message sent successfully");
-        } else {
+        if (data['status'] != 'success') {
           debugPrint("⚠️ API error: ${data['message']}");
         }
       } else {
@@ -160,29 +155,39 @@ class _ContactSupportScreenState extends State<ContactSupportScreen> {
                     ),
                     child: Column(
                       children: [
-                        // ---- Top bar ----
-                        Padding(
-                          padding: EdgeInsets.fromLTRB(0, fs(8), 0, fs(4)),
-                          child: Row(
-                            children: [
-                              IconButton(
-                                onPressed: () => Navigator.maybePop(context),
-                                icon: const Icon(Icons.arrow_back_ios_new,
-                                    size: 18),
-                                color: Colors.black87,
-                                tooltip: 'Back',
-                              ),
-                              const Spacer(),
-                              Image.asset(
-                                'assets/images/logo.png',
-                                height: fs(30),
-                                fit: BoxFit.contain,
-                              ),
-                              const Spacer(),
-                              SizedBox(width: fs(40)),
-                            ],
-                          ),
-                        ),
+                        // ---- Top bar (now safe & works in fullscreen) ----
+                        Builder(builder: (context) {
+                          final topInset = MediaQuery.of(context).padding.top;
+                          return Padding(
+                            padding:
+                                EdgeInsets.fromLTRB(0, topInset + fs(6), 0, fs(4)),
+                            child: Row(
+                              children: [
+                                GestureDetector(
+                                  onTap: () => Navigator.pop(context),
+                                  behavior: HitTestBehavior.opaque,
+                                  child: Padding(
+                                    padding: EdgeInsets.symmetric(
+                                        horizontal: fs(10), vertical: fs(8)),
+                                    child: const Icon(
+                                      Icons.arrow_back_ios_new,
+                                      size: 18,
+                                      color: Colors.black87,
+                                    ),
+                                  ),
+                                ),
+                                const Spacer(),
+                                Image.asset(
+                                  'assets/images/logo.png',
+                                  height: fs(30),
+                                  fit: BoxFit.contain,
+                                ),
+                                const Spacer(),
+                                SizedBox(width: fs(40)),
+                              ],
+                            ),
+                          );
+                        }),
 
                         // ---- Chat list ----
                         Expanded(

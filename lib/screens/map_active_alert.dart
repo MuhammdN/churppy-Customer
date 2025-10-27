@@ -501,17 +501,26 @@ Future<void> _fetchNearbyAlerts(double lat, double lng) async {
                 ),
               ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => const ChurppyAlertsScreen()),
-          );
-        },
-        backgroundColor: const Color(0xFF6C2FA0),
-        shape: const CircleBorder(),
-        elevation: 6,
-        child: const Icon(Icons.add, color: Colors.white, size: 28),
-      ),
+       // FAB → Alerts screen
+     floatingActionButton: FloatingActionButton(
+  onPressed: () {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const ChurppyAlertsScreen()),
+    );
+  },
+  backgroundColor: const Color(0xFF6C2FA0),
+  shape: const CircleBorder(),
+  elevation: 6,
+  child: Padding(
+    padding: const EdgeInsets.all(10), // adjust for centering
+    child: Image.asset(
+      'assets/images/alert1.png', // 👈 your image file path
+      color: Colors.white, // ensure it stays white even if PNG has color
+      fit: BoxFit.contain,
+    ),
+  ),
+),
+
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       bottomNavigationBar: ChurppyNavbar(
         selectedIndex: 0,

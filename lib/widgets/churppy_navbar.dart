@@ -15,8 +15,8 @@ class ChurppyNavbar extends StatelessWidget {
     final icons = [
       Icons.home_outlined,
       Icons.person_outline,
-      Icons.receipt_long_outlined,
-      Icons.favorite_border,
+     Icons.chat_bubble_outline,
+     Icons.favorite_border,
     ];
 
     return BottomAppBar(

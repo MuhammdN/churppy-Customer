@@ -1,6 +1,9 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:country_picker/country_picker.dart';
+import 'package:flutter_typeahead/flutter_typeahead.dart';
+import 'package:geolocator/geolocator.dart';
 import 'login.dart';
 
 class SignupScreen extends StatefulWidget {
@@ -11,9 +14,8 @@ class SignupScreen extends StatefulWidget {
 }
 
 class _SignupScreenState extends State<SignupScreen> {
-  String selectedCountryCode = '+1';
-  String selectedFlag = '🇺🇸';
   bool isLoading = false;
+  Country? selectedCountry;
 
   final TextEditingController addressCtrl = TextEditingController();
   final TextEditingController firstNameCtrl = TextEditingController();
@@ -24,12 +26,75 @@ class _SignupScreenState extends State<SignupScreen> {
 
   final Map<String, String?> _errors = {};
 
-  final List<Map<String, String>> countries = [
-    {'code': '+1', 'flag': '🇺🇸', 'name': 'United States'},
-    {'code': '+44', 'flag': '🇬🇧', 'name': 'United Kingdom'},
-    {'code': '+92', 'flag': '🇵🇰', 'name': 'Pakistan'},
-    {'code': '+91', 'flag': '🇮🇳', 'name': 'India'},
-  ];
+  @override
+  void initState() {
+    super.initState();
+    selectedCountry = Country(
+      phoneCode: '1',
+      countryCode: 'US',
+      e164Sc: 0,
+      geographic: true,
+      level: 1,
+      name: 'United States',
+      example: '',
+      displayName: 'United States',
+      displayNameNoCountryCode: 'United States',
+      e164Key: '',
+    );
+  }
+
+  // 🧭 Fetch address suggestions from OpenStreetMap (Nominatim)
+  Future<List<Map<String, dynamic>>> fetchSuggestions(String query) async {
+    await Future.delayed(const Duration(milliseconds: 400)); // debounce
+    if (query.isEmpty) return [];
+
+    final uri = Uri.parse(
+        'https://nominatim.openstreetmap.org/search?q=${Uri.encodeComponent(query)}&format=json&addressdetails=1&limit=6');
+
+    final resp = await http.get(uri, headers: {
+      'User-Agent': 'ChurppyApp/1.0 (churppy@example.com)',
+    });
+
+    if (resp.statusCode == 200) {
+      final List data = json.decode(resp.body);
+      return data.cast<Map<String, dynamic>>();
+    } else {
+      return [];
+    }
+  }
+
+  // 📍 Use current location and fill in address
+  Future<void> useCurrentLocation() async {
+    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enable location services')),
+      );
+      return;
+    }
+
+    LocationPermission permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) return;
+    }
+    if (permission == LocationPermission.deniedForever) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Location permissions are permanently denied')),
+      );
+      return;
+    }
+
+    Position pos = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high);
+
+    setState(() {
+      addressCtrl.text = "${pos.latitude},${pos.longitude}";
+    });
+
+    print("📍 Current Location: ${pos.latitude},${pos.longitude}");
+  }
 
   bool _validateInputs() {
     _errors.clear();
@@ -66,12 +131,14 @@ class _SignupScreenState extends State<SignupScreen> {
 
     setState(() => isLoading = true);
 
-    final url = Uri.parse("https://churppy.eurekawebsolutions.com/api/signup.php");
+    final url =
+        Uri.parse("https://churppy.eurekawebsolutions.com/api/signup.php");
 
     final requestBody = {
       "firstname": firstNameCtrl.text.trim(),
       "lastname": lastNameCtrl.text.trim(),
-      "user_phone": "$selectedCountryCode${phoneCtrl.text.trim()}",
+      "user_phone":
+          "+${selectedCountry?.phoneCode ?? '1'}${phoneCtrl.text.trim()}",
       "email": emailCtrl.text.trim(),
       "password": passwordCtrl.text.trim(),
       "address": addressCtrl.text.trim(),
@@ -79,8 +146,6 @@ class _SignupScreenState extends State<SignupScreen> {
 
     try {
       final response = await http.post(url, body: requestBody);
-
-      
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Response Code: ${response.statusCode}")),
@@ -150,18 +215,78 @@ class _SignupScreenState extends State<SignupScreen> {
                                 error: _errors['firstName']),
                             _field("Last Name", lastNameCtrl,
                                 error: _errors['lastName']),
-                            _field("Email", emailCtrl,
-                                error: _errors['email']),
+                            _field("Email", emailCtrl, error: _errors['email']),
                             _field("Password", passwordCtrl,
                                 obscure: true, error: _errors['password']),
-                            _field("Address", addressCtrl,
-                                error: _errors['address']),
+
+                            // 🏠 Address Field with Autocomplete
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 10),
+                              child: TypeAheadField<Map<String, dynamic>>(
+                                controller: addressCtrl,
+                                suggestionsCallback: fetchSuggestions,
+                                builder: (context, controller, focusNode) {
+                                  return TextField(
+                                    controller: controller,
+                                    focusNode: focusNode,
+                                    decoration: InputDecoration(
+                                      hintText: 'Enter Address',
+                                      errorText: _errors['address'],
+                                      suffixIcon: IconButton(
+                                        icon:
+                                            const Icon(Icons.my_location_rounded),
+                                        onPressed: useCurrentLocation,
+                                      ),
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      contentPadding:
+                                          const EdgeInsets.symmetric(
+                                              horizontal: 14, vertical: 12),
+                                    ),
+                                  );
+                                },
+                                itemBuilder: (context, suggestion) {
+                                  final address = suggestion['address'] ?? {};
+                                  final sub = [
+                                    address['road'],
+                                    address['suburb'],
+                                    address['city'],
+                                    address['state'],
+                                    address['country']
+                                  ].where((e) => e != null).join(", ");
+                                  return ListTile(
+                                    title: Text(
+                                        suggestion['display_name'] ?? 'Unknown'),
+                                    subtitle: Text(sub),
+                                  );
+                                },
+                                onSelected: (suggestion) {
+                                  final name =
+                                      suggestion['display_name']?.toString() ??
+                                          '';
+                                  final lat =
+                                      suggestion['lat']?.toString() ?? '';
+                                  final lon =
+                                      suggestion['lon']?.toString() ?? '';
+                                  setState(() {
+                                    addressCtrl.text = name;
+                                  });
+                                  print("📍 Selected: $name ($lat,$lon)");
+                                },
+                                emptyBuilder: (context) => const ListTile(
+                                    title: Text('No results found')),
+                              ),
+                            ),
+
                             const Text(
                               'Enter your mobile number',
                               style: TextStyle(
                                   fontSize: 13, fontWeight: FontWeight.w600),
                             ),
                             const SizedBox(height: 8),
+
+                            // 📱 Phone field
                             Row(
                               children: [
                                 InkWell(
@@ -170,16 +295,23 @@ class _SignupScreenState extends State<SignupScreen> {
                                     padding: const EdgeInsets.symmetric(
                                         horizontal: 10, vertical: 12),
                                     decoration: BoxDecoration(
-                                      border: Border.all(color: Color(0xFFBDBDBD)),
+                                      border: Border.all(
+                                          color: const Color(0xFFBDBDBD)),
                                       borderRadius: BorderRadius.circular(6),
                                     ),
                                     child: Row(
                                       children: [
-                                        Text(selectedFlag,
-                                            style: const TextStyle(fontSize: 18)),
+                                        Text(selectedCountry?.flagEmoji ?? '🌎',
+                                            style:
+                                                const TextStyle(fontSize: 20)),
                                         const SizedBox(width: 6),
-                                        Text(selectedCountryCode),
-                                        const Icon(Icons.arrow_drop_down, size: 20),
+                                        Text(
+                                          '+${selectedCountry?.phoneCode ?? ''}',
+                                          style:
+                                              const TextStyle(fontSize: 14),
+                                        ),
+                                        const Icon(Icons.arrow_drop_down,
+                                            size: 20),
                                       ],
                                     ),
                                   ),
@@ -193,10 +325,12 @@ class _SignupScreenState extends State<SignupScreen> {
                                       hintText: 'Phone Number',
                                       errorText: _errors['phone'],
                                       border: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(6),
+                                        borderRadius:
+                                            BorderRadius.circular(6),
                                       ),
-                                      contentPadding: const EdgeInsets.symmetric(
-                                          horizontal: 14, vertical: 12),
+                                      contentPadding:
+                                          const EdgeInsets.symmetric(
+                                              horizontal: 14, vertical: 12),
                                     ),
                                   ),
                                 ),
@@ -206,6 +340,8 @@ class _SignupScreenState extends State<SignupScreen> {
                         ),
                       ),
                     ),
+
+                    // Continue button + login link
                     Padding(
                       padding: const EdgeInsets.fromLTRB(20, 0, 20, 100),
                       child: Column(
@@ -222,13 +358,13 @@ class _SignupScreenState extends State<SignupScreen> {
                               onPressed: isLoading ? null : _signup,
                               child: isLoading
                                   ? const SizedBox(
-                                height: 22,
-                                width: 22,
-                                child: CircularProgressIndicator(
-                                  color: Colors.white,
-                                  strokeWidth: 2,
-                                ),
-                              )
+                                      height: 22,
+                                      width: 22,
+                                      child: CircularProgressIndicator(
+                                        color: Colors.white,
+                                        strokeWidth: 2,
+                                      ),
+                                    )
                                   : const Text('Continue'),
                             ),
                           ),
@@ -252,7 +388,7 @@ class _SignupScreenState extends State<SignupScreen> {
                                   context,
                                   MaterialPageRoute(
                                     builder: (context) =>
-                                    const LoginScreen(),
+                                        const LoginScreen(),
                                   ),
                                 );
                               },
@@ -265,7 +401,8 @@ class _SignupScreenState extends State<SignupScreen> {
                                       text: 'login.',
                                       style: TextStyle(
                                         fontWeight: FontWeight.w700,
-                                        decoration: TextDecoration.underline,
+                                        decoration:
+                                            TextDecoration.underline,
                                       ),
                                     ),
                                   ],
@@ -316,33 +453,20 @@ class _SignupScreenState extends State<SignupScreen> {
           errorText: error,
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(6)),
           contentPadding:
-          const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         ),
       ),
     );
   }
 
   void _showCountryPicker(BuildContext context) {
-    showModalBottomSheet(
+    showCountryPicker(
       context: context,
-      builder: (context) {
-        return ListView(
-          shrinkWrap: true,
-          children: countries.map((country) {
-            return ListTile(
-              leading:
-              Text(country['flag']!, style: const TextStyle(fontSize: 20)),
-              title: Text('${country['name']} (${country['code']})'),
-              onTap: () {
-                setState(() {
-                  selectedCountryCode = country['code']!;
-                  selectedFlag = country['flag']!;
-                });
-                Navigator.pop(context);
-              },
-            );
-          }).toList(),
-        );
+      showPhoneCode: true,
+      onSelect: (Country country) {
+        setState(() {
+          selectedCountry = country;
+        });
       },
     );
   }

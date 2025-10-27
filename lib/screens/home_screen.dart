@@ -500,11 +500,21 @@ Future<void> _getLocationAndLoad() async {
 
                     // ✅ FILTER LOGIC
                     List<BusinessModel> displayList = businesses;
-                    if (selectedFilter != 'All') {
-                      displayList = businesses.where((b) {
-                        return b.title.toLowerCase().contains(selectedFilter.toLowerCase());
-                      }).toList();
-                    }
+                   if (selectedFilter != 'All') {
+  String filter = selectedFilter.toLowerCase();
+
+  displayList = businesses.where((b) {
+    final title = b.title.toLowerCase();
+    final desc  = b.description.toLowerCase();
+
+    // ✅ FULL PHRASE match required
+    if (title.contains(filter)) return true;
+    if (desc.contains(filter)) return true;
+
+    return false;
+  }).toList();
+}
+
 
                     if (displayList.isEmpty) {
                       return Padding(
@@ -569,17 +579,25 @@ Future<void> _getLocationAndLoad() async {
       ),
 
       // FAB → Alerts screen
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => const ChurppyAlertsScreen()),
-          );
-        },
-        backgroundColor: const Color(0xFF6C2FA0),
-        shape: const CircleBorder(),
-        elevation: 6,
-        child: const Icon(Icons.add, color: Colors.white, size: 28),
-      ),
+     floatingActionButton: FloatingActionButton(
+  onPressed: () {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const ChurppyAlertsScreen()),
+    );
+  },
+  backgroundColor: const Color(0xFF6C2FA0),
+  shape: const CircleBorder(),
+  elevation: 6,
+  child: Padding(
+    padding: const EdgeInsets.all(10), // adjust for centering
+    child: Image.asset(
+      'assets/images/alert1.png', // 👈 your image file path
+      color: Colors.white, // ensure it stays white even if PNG has color
+      fit: BoxFit.contain,
+    ),
+  ),
+),
+
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
 
       // Bottom Navbar
@@ -713,18 +731,18 @@ Future<void> _getLocationAndLoad() async {
   Widget _categoryFilters(double Function(double) fs) {
     final filters = [
       'All',
-      'Restaurants',
+      'Food Trucks',
       'Cafés',
       'Bakeries',
       'Fast Food',
       'Street Food',
       'Desserts',
       'Ice Cream',
-      'Food Trucks',
+      'Restaurants',
       'Bars & Pubs',
       'Fine Dining',
       'Buffet',
-      'Outdoor Seating',
+      'Pizza',
       'Delivery Available',
       'Takeaway',
       'Specials',
@@ -926,7 +944,7 @@ Future<void> _getLocationAndLoad() async {
               children: [
                 const Icon(Icons.star, size: 16, color: Colors.orange),
                 SizedBox(width: fs(4)),
-                Text("4.8", style: TextStyle(fontSize: fs(12.5))),
+                Text("5.0", style: TextStyle(fontSize: fs(12.5))),
                 SizedBox(width: fs(6)),
                 Text("CHURPPY", style: TextStyle(fontSize: fs(11), color: Colors.black54)),
                 const Spacer(),
@@ -1099,7 +1117,7 @@ class ChurppyNavbar extends StatelessWidget {
     final icons = [
       Icons.home_outlined,
       Icons.person_outline,
-      Icons.receipt_long_outlined,
+      Icons.chat_bubble_outline,
       Icons.favorite_border,
     ];
 

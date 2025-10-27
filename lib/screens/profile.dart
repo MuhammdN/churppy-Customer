@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:churppy_customer/screens/OrderDetailScreen.dart';
 import 'package:churppy_customer/screens/PaymentDetailsScreen.dart';
+import 'package:churppy_customer/screens/contactUsScreen.dart';
 import 'package:churppy_customer/screens/orders_history_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -213,11 +214,157 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               color: Colors.white, size: 20),
                           onPressed: () => Navigator.pop(context),
                         ),
-                        IconButton(
-                          icon: const Icon(Icons.settings,
-                              color: Colors.white, size: 20),
-                          onPressed: () {},
+                       IconButton(
+  icon: const Icon(Icons.settings, color: Colors.white, size: 22),
+  onPressed: () {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Center(
+              child: Icon(Icons.settings, color: Color(0xFF804692), size: 40),
+            ),
+            const SizedBox(height: 10),
+            const Center(
+              child: Text(
+                "Settings",
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF804692),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // Privacy Policy
+            ListTile(
+              leading: const Icon(Icons.privacy_tip_outlined,
+                  color: Colors.black87),
+              title: const Text("Privacy Policy"),
+              onTap: () {
+                Navigator.pop(context);
+                showDialog(
+                  context: context,
+                  builder: (ctx) => AlertDialog(
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                    title: const Text("Privacy Policy",
+                        style: TextStyle(
+                            color: Color(0xFF804692),
+                            fontWeight: FontWeight.bold)),
+                    content: const Text(
+                      "We value your privacy. Your personal data such as name, "
+                      "email, and location are used only for improving your "
+                      "Churppy experience. We do not share your information with "
+                      "any third party. For detailed terms, please visit our "
+                      "Privacy Policy section in the app settings.",
+                      style: TextStyle(fontSize: 14, height: 1.4),
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(ctx),
+                        child: const Text(
+                          "OK",
+                          style: TextStyle(
+                              color: Color(0xFF804692),
+                              fontWeight: FontWeight.bold),
                         ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+
+            // About App
+            ListTile(
+              leading: const Icon(Icons.info_outline, color: Colors.black87),
+              title: const Text("About App"),
+              onTap: () {
+                Navigator.pop(context);
+                showDialog(
+                  context: context,
+                  builder: (ctx) => AlertDialog(
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                    title: const Text("About Churppy",
+                        style: TextStyle(
+                            color: Color(0xFF804692),
+                            fontWeight: FontWeight.bold)),
+                    content: const Text(
+                      "Churppy is your trusted food discovery app — helping you "
+                      "find nearby food trucks, restaurants, cafés, and deals. "
+                      "We aim to connect customers with the best local dining "
+                      "experiences, ensuring freshness, convenience, and joy.\n\n"
+                      "Version: 1.0.0\n© 2025 Churppy.",
+                      style: TextStyle(fontSize: 14, height: 1.4),
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(ctx),
+                        child: const Text(
+                          "Close",
+                          style: TextStyle(
+                              color: Color(0xFF804692),
+                              fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+
+          
+            ListTile(
+              leading: const Icon(Icons.contact_support_outlined, 
+                  color: Colors.black87),
+              title: const Text("Contact Us"),
+              onTap: () {
+  Navigator.push(
+    context,
+    MaterialPageRoute(builder: (context) => ContactUsScreen()),
+  );
+},
+
+            ),
+
+            const SizedBox(height: 10),
+            Center(
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.pop(context);
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF804692),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(30),
+                  ),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 24, vertical: 12),
+                ),
+                icon: const Icon(Icons.check, color: Colors.white),
+                label:
+                    const Text("Done", style: TextStyle(color: Colors.white)),
+              ),
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  },
+),
+
                       ],
                     ),
                   ),
@@ -276,7 +423,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             _labeledField("Email",
                                 controller: _emailController,
                                 hint: "email@churppy.com"),
-                            _labeledField("Delivery address",
+                            _labeledField("Address",
                                 controller: _addressController,
                                 hint: "Your address"),
                             _passwordField(),
@@ -367,12 +514,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  ImageProvider _getProfileImage() {
+  ImageProvider? _getProfileImage() {
     if (_selectedImage != null) return FileImage(_selectedImage!);
     if (_profileImage.isNotEmpty && _profileImage.startsWith("http")) {
       return NetworkImage(_profileImage);
     }
-    return const AssetImage("assets/images/profile_pic.png");
+    return null;
   }
 
   Widget _labeledField(String label,

@@ -406,16 +406,26 @@ class _MenuScreenState extends State<MenuScreen> {
         ),
       ),
 
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => const ChurppyAlertsScreen()),
-          );
-        },
-        backgroundColor: const Color(0xFF6C2FA0),
-        shape: const CircleBorder(),
-        child: const Icon(Icons.add, color: Colors.white, size: 28),
-      ),
+       // FAB → Alerts screen
+     floatingActionButton: FloatingActionButton(
+  onPressed: () {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const ChurppyAlertsScreen()),
+    );
+  },
+  backgroundColor: const Color(0xFF6C2FA0),
+  shape: const CircleBorder(),
+  elevation: 6,
+  child: Padding(
+    padding: const EdgeInsets.all(10), // adjust for centering
+    child: Image.asset(
+      'assets/images/alert1.png', // 👈 your image file path
+      color: Colors.white, // ensure it stays white even if PNG has color
+      fit: BoxFit.contain,
+    ),
+  ),
+),
+
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       bottomNavigationBar: ChurppyNavbar(
         selectedIndex: 0,
@@ -518,7 +528,7 @@ class _MenuScreenState extends State<MenuScreen> {
                       children: [
                         const Icon(Icons.star, size: 14, color: Colors.amber),
                         SizedBox(width: fs(4)),
-                        Text("4.5", style: TextStyle(fontSize: fs(12))),
+                        Text("5.0", style: TextStyle(fontSize: fs(12))),
                       ],
                     ),
                     InkWell(
@@ -556,7 +566,7 @@ class ChurppyNavbar extends StatelessWidget {
     final icons = [
       Icons.home_outlined,
       Icons.person_outline,
-      Icons.receipt_long_outlined,
+      Icons.chat_bubble_outline,
       Icons.favorite_border,
     ];
 

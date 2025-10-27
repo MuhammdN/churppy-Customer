@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:country_picker/country_picker.dart'; // ✅ NEW
 
 import '../home_screen.dart';
 import 'signup_screen.dart';
@@ -18,30 +19,37 @@ class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController passCtrl = TextEditingController();
   final TextEditingController phoneCtrl = TextEditingController();
 
-  String selectedCountryCode = '+1';
-  String selectedFlag = '🇺🇸';
-
+  Country? selectedCountry;
   bool isLoading = false;
   final Map<String, String?> _errors = {};
 
-  final List<Map<String, String>> countries = [
-    {'code': '+1', 'flag': '🇺🇸', 'name': 'United States'},
-    {'code': '+44', 'flag': '🇬🇧', 'name': 'United Kingdom'},
-    {'code': '+92', 'flag': '🇵🇰', 'name': 'Pakistan'},
-    {'code': '+91', 'flag': '🇮🇳', 'name': 'India'},
-  ];
+  @override
+  void initState() {
+    super.initState();
+    // Default country = US 🇺🇸
+    selectedCountry = Country(
+      phoneCode: '1',
+      countryCode: 'US',
+      e164Sc: 0,
+      geographic: true,
+      level: 1,
+      name: 'United States',
+      example: '',
+      displayName: 'United States',
+      displayNameNoCountryCode: 'United States',
+      e164Key: '',
+    );
+  }
 
   /// ✅ Validate Inputs
   bool _validateInputs() {
     _errors.clear();
 
     if (phoneCtrl.text.trim().isNotEmpty) {
-      // agar phone diya gaya hai to phone validate kare
       if (!RegExp(r'^[0-9]{6,}$').hasMatch(phoneCtrl.text.trim())) {
         _errors['phone'] = "Enter a valid phone number";
       }
     } else {
-      // agar phone empty hai to email validate kare
       if (emailCtrl.text.trim().isEmpty) {
         _errors['email'] = "Email is required";
       } else if (!RegExp(r'^[^@]+@[^@]+\.[^@]+')
@@ -68,10 +76,10 @@ class _LoginScreenState extends State<LoginScreen> {
 
     final url = Uri.parse("https://churppy.eurekawebsolutions.com/api/login.php");
 
-    // Agar phone diya gaya hai to sirf phone bhejenge warna email
     final requestBody = {
       if (phoneCtrl.text.trim().isNotEmpty)
-        "phone_number": "$selectedCountryCode${phoneCtrl.text.trim()}",
+        "phone_number":
+            "+${selectedCountry?.phoneCode ?? '1'}${phoneCtrl.text.trim()}",
       if (phoneCtrl.text.trim().isEmpty)
         "email": emailCtrl.text.trim(),
       "password": passCtrl.text.trim(),
@@ -90,7 +98,6 @@ class _LoginScreenState extends State<LoginScreen> {
       if (response.statusCode == 200 && result['status'] == 'success') {
         final userData = result['data'] ?? {};
 
-        /// ✅ Role Check
         if (userData['role_id'].toString() == "2") {
           final prefs = await SharedPreferences.getInstance();
           await prefs.setString("user", jsonEncode(userData));
@@ -157,13 +164,14 @@ class _LoginScreenState extends State<LoginScreen> {
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
                             const Text(
-                              'Enter your mobile number (optional)',
+                              'Enter your mobile number ',
                               style: TextStyle(
                                   fontSize: 13, fontWeight: FontWeight.w600),
                             ),
                             const SizedBox(height: 8),
                             Row(
                               children: [
+                                // ✅ Dynamic country picker
                                 InkWell(
                                   onTap: () => _showCountryPicker(context),
                                   child: Container(
@@ -175,10 +183,11 @@ class _LoginScreenState extends State<LoginScreen> {
                                     ),
                                     child: Row(
                                       children: [
-                                        Text(selectedFlag,
-                                            style: const TextStyle(fontSize: 18)),
+                                        Text(selectedCountry?.flagEmoji ?? '🌎',
+                                            style: const TextStyle(fontSize: 20)),
                                         const SizedBox(width: 6),
-                                        Text(selectedCountryCode),
+                                        Text('+${selectedCountry?.phoneCode ?? ''}',
+                                            style: const TextStyle(fontSize: 14)),
                                         const Icon(Icons.arrow_drop_down, size: 20),
                                       ],
                                     ),
@@ -308,25 +317,13 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   void _showCountryPicker(BuildContext context) {
-    showModalBottomSheet(
+    showCountryPicker(
       context: context,
-      builder: (context) {
-        return ListView(
-          shrinkWrap: true,
-          children: countries.map((country) {
-            return ListTile(
-              leading: Text(country['flag']!, style: const TextStyle(fontSize: 20)),
-              title: Text('${country['name']} (${country['code']})'),
-              onTap: () {
-                setState(() {
-                  selectedCountryCode = country['code']!;
-                  selectedFlag = country['flag']!;
-                });
-                Navigator.pop(context);
-              },
-            );
-          }).toList(),
-        );
+      showPhoneCode: true, // 📱 shows +code
+      onSelect: (Country country) {
+        setState(() {
+          selectedCountry = country;
+        });
       },
     );
   }
