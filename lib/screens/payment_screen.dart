@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:churppy_customer/screens/discount_service.dart';
 import 'package:churppy_customer/screens/popupScreen.dart';
 import 'package:churppy_customer/screens/profile.dart';
 import 'package:flutter/material.dart';
@@ -6,6 +7,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
+import 'package:geocoding/geocoding.dart';
+
 
 class PaymentScreen extends StatefulWidget {
   final int itemId;
@@ -31,6 +34,11 @@ class _PaymentScreenState extends State<PaymentScreen> {
   bool isLoading = false;
   int _userId = 0;
   String? _profileImageUrl;
+  
+  // Discount related variables
+  Map<String, dynamic>? _activeDiscount;
+  double _discountAmount = 0.0;
+  bool _isLoadingDiscount = true;
 
   // --- Form Fields ---
   final nameCtrl = TextEditingController();
@@ -44,7 +52,70 @@ class _PaymentScreenState extends State<PaymentScreen> {
   void initState() {
     super.initState();
     _loadUserId();
-    _loadUserProfile(); // prefill form
+    _loadUserProfile();
+    _fetchActiveDiscount(); // Fetch discount on screen load
+  }
+
+  // Fetch active discount for merchant
+  Future<void> _fetchActiveDiscount() async {
+    try {
+      setState(() => _isLoadingDiscount = true);
+      
+      final discount = await DiscountService.getActiveDiscount(widget.merchantId);
+      
+      if (discount != null && mounted) {
+        setState(() {
+          _activeDiscount = discount;
+          // Calculate discount amount
+          final discountPercentage = double.tryParse(discount['discount'].toString()) ?? 0.0;
+          _discountAmount = (widget.totalPrice * discountPercentage) / 100;
+        });
+      }
+    } catch (e) {
+      debugPrint("❌ Error fetching discount: $e");
+    } finally {
+      if (mounted) {
+        setState(() => _isLoadingDiscount = false);
+      }
+    }
+  }
+
+  Future<String> _getAddressFromLatLng(double latitude, double longitude) async {
+    try {
+      List<Placemark> placemarks = await placemarkFromCoordinates(latitude, longitude);
+      
+      if (placemarks.isNotEmpty) {
+        Placemark place = placemarks.first;
+        
+        // Complete address بنائیں
+        String address = '';
+        if (place.street != null && place.street!.isNotEmpty) {
+          address += place.street!;
+        }
+        if (place.locality != null && place.locality!.isNotEmpty) {
+          if (address.isNotEmpty) address += ', ';
+          address += place.locality!;
+        }
+        if (place.administrativeArea != null && place.administrativeArea!.isNotEmpty) {
+          if (address.isNotEmpty) address += ', ';
+          address += place.administrativeArea!;
+        }
+        if (place.postalCode != null && place.postalCode!.isNotEmpty) {
+          if (address.isNotEmpty) address += ' - ';
+          address += place.postalCode!;
+        }
+        if (place.country != null && place.country!.isNotEmpty) {
+          if (address.isNotEmpty) address += ', ';
+          address += place.country!;
+        }
+        
+        return address.isNotEmpty ? address : 'Address not found';
+      }
+      return 'Address not found';
+    } catch (e) {
+      debugPrint("❌ Geocoding error: $e");
+      return 'Failed to get address';
+    }
   }
 
   Future<void> _loadUserProfile() async {
@@ -57,20 +128,43 @@ class _PaymentScreenState extends State<PaymentScreen> {
       _userId = userMap['id'] ?? 0;
       if (_userId == 0) return;
 
-      final url =
-          "https://churppy.eurekawebsolutions.com/api/user.php?id=$_userId";
+      final url = "https://churppy.eurekawebsolutions.com/api/user.php?id=$_userId";
       final response = await http.get(Uri.parse(url));
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         if (data['status'] == 'success') {
           final user = data['data'];
+          
+          String address = '';
+          
+          // Check if address contains coordinates
+          if (user['address'] != null && user['address'].toString().contains(',')) {
+            final addressParts = user['address'].toString().split(',');
+            if (addressParts.length >= 2) {
+              try {
+                final double lat = double.parse(addressParts[0].trim());
+                final double lng = double.parse(addressParts[1].trim());
+                
+                // Convert coordinates to address
+                address = await _getAddressFromLatLng(lat, lng);
+              } catch (e) {
+                // If parsing fails, use original address
+                address = user['address'] ?? '';
+                debugPrint("❌ Coordinate parsing error: $e");
+              }
+            } else {
+              address = user['address'] ?? '';
+            }
+          } else {
+            address = user['address'] ?? '';
+          }
+          
           setState(() {
             _profileImageUrl = user['image'];
-            nameCtrl.text =
-                "${user['first_name'] ?? ''} ${user['last_name'] ?? ''}".trim();
+            nameCtrl.text = "${user['first_name'] ?? ''} ${user['last_name'] ?? ''}".trim();
             emailCtrl.text = user['email'] ?? '';
             phoneCtrl.text = user['phone_number'] ?? '';
-            addressCtrl.text = user['address'] ?? '';
+            addressCtrl.text = address; // Converted address
           });
         }
       }
@@ -112,6 +206,12 @@ class _PaymentScreenState extends State<PaymentScreen> {
     try {
       final url = Uri.parse(
           "https://churppy.eurekawebsolutions.com/api/insert_order.php");
+      
+      // Calculate final amounts with discount
+      final subtotal = widget.totalPrice;
+      final discountAmount = _discountAmount;
+      final totalAfterDiscount = subtotal - discountAmount;
+      
       final Map<String, dynamic> payload = {
         "merchant_id": widget.merchantId,
         "user_id": _userId,
@@ -128,10 +228,13 @@ class _PaymentScreenState extends State<PaymentScreen> {
         "item_id": widget.itemId,
         "item_name": widget.title,
         "quantity": widget.quantity,
-        "price": widget.totalPrice,
+        "price": totalAfterDiscount, // Send discounted price
         "charge_id": chargeId ?? "0",
         "stripe_order_id": orderId ?? "",
+        "discount_amount": discountAmount,
+        "discount_percentage": _activeDiscount != null ? _activeDiscount!['discount'] : 0,
       };
+      
       debugPrint("📤 Sending JSON Order Data: $payload");
       final response = await http.post(url,
           headers: {"Content-Type": "application/json"},
@@ -205,6 +308,8 @@ class _PaymentScreenState extends State<PaymentScreen> {
           const SnackBar(content: Text("Please fill required fields (*)")));
       return;
     }
+    
+    // Use discounted total for payment
     if (paymentType == "card") {
       _handleCardPayment(total);
     } else {
@@ -217,10 +322,14 @@ class _PaymentScreenState extends State<PaymentScreen> {
     final w = MediaQuery.of(context).size.width;
     final scale = (w / 390).clamp(0.85, 1.25);
     double fs(double x) => x * scale;
+    
+    // Calculate totals
     final subtotal = widget.totalPrice;
     final taxes = subtotal * 0.1;
     final delivery = 1.50;
-    final grandTotal = subtotal + taxes + delivery;
+    final discount = _discountAmount;
+    final totalAfterDiscount = subtotal - discount;
+    final finalGrandTotal = totalAfterDiscount + taxes + delivery;
 
     return Scaffold(
       backgroundColor: const Color(0xfff9f9f9),
@@ -237,7 +346,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     _buildOrderSummaryCard(
-                        subtotal, taxes, delivery, grandTotal, fs),
+                        subtotal, taxes, delivery, finalGrandTotal, fs),
                     SizedBox(height: fs(24)),
                     _buildDeliveryInfoCard(fs),
                     SizedBox(height: fs(24)),
@@ -247,7 +356,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
                 ),
               ),
             ),
-            _buildBottomButton(grandTotal, fs),
+            _buildBottomButton(finalGrandTotal, fs),
           ],
         ),
       ),
@@ -303,6 +412,11 @@ class _PaymentScreenState extends State<PaymentScreen> {
 
   Widget _buildOrderSummaryCard(double subtotal, double taxes, double delivery,
       double grandTotal, double Function(double) fs) {
+        
+    // Calculate totals with discount
+    final discount = _discountAmount;
+    final totalAfterDiscount = subtotal - discount;
+
     return Container(
       width: double.infinity,
       padding: EdgeInsets.all(fs(20)),
@@ -323,19 +437,117 @@ class _PaymentScreenState extends State<PaymentScreen> {
                     fontWeight: FontWeight.bold,
                     color: Colors.black87)),
           ]),
+          
+          // Discount Banner - Show loading or discount info
+          if (_isLoadingDiscount) ...[
+            SizedBox(height: fs(12)),
+            Container(
+              padding: EdgeInsets.all(fs(12)),
+              decoration: BoxDecoration(
+                color: Colors.grey[100],
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                children: [
+                  SizedBox(
+                    width: fs(16),
+                    height: fs(16),
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                  SizedBox(width: fs(8)),
+                  Text(
+                    "Checking for discounts...",
+                    style: TextStyle(
+                      fontSize: fs(14),
+                      color: Colors.grey[700],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ] else if (_activeDiscount != null) ...[
+            SizedBox(height: fs(12)),
+            Container(
+              padding: EdgeInsets.all(fs(12)),
+              decoration: BoxDecoration(
+                color: Color(0xFFE8F5E8),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Color(0xFF1CC019), width: 1),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.local_offer, color: Color(0xFF1CC019), size: fs(16)),
+                  SizedBox(width: fs(8)),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _activeDiscount!['title'] ?? 'Discount Applied',
+                          style: TextStyle(
+                            fontSize: fs(14),
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black87,
+                          ),
+                        ),
+                        if (_activeDiscount!['description'] != null)
+                          Text(
+                            _activeDiscount!['description'],
+                            style: TextStyle(
+                              fontSize: fs(12),
+                              color: Colors.grey[700],
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                      ],
+                    ),
+                  ),
+                  Text(
+                    "${_activeDiscount!['discount']}% OFF",
+                    style: TextStyle(
+                      fontSize: fs(14),
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF1CC019),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+          
           SizedBox(height: fs(16)),
           _buildSummaryItem(
               "Subtotal (${widget.quantity} items)",
               "\$${subtotal.toStringAsFixed(2)}",
               fs),
+          
+          // Discount Row
+          if (_activeDiscount != null) ...[
+            _buildSummaryItem(
+              "Discount (${_activeDiscount!['discount']}%)",
+              "-\$${discount.toStringAsFixed(2)}",
+              fs,
+              isDiscount: true,
+            ),
+            _buildSummaryItem(
+              "Subtotal after discount",
+              "\$${totalAfterDiscount.toStringAsFixed(2)}",
+              fs,
+            ),
+          ],
+          
           _buildSummaryItem(
               "Taxes (10%)", "\$${taxes.toStringAsFixed(2)}", fs),
           _buildSummaryItem(
               "Delivery Fee", "\$${delivery.toStringAsFixed(2)}", fs),
           Divider(height: fs(20)),
-          _buildSummaryItem("Total Amount", "\$${grandTotal.toStringAsFixed(2)}",
-              fs,
-              isTotal: true),
+          _buildSummaryItem(
+            "Total Amount", 
+            "\$${grandTotal.toStringAsFixed(2)}", 
+            fs,
+            isTotal: true,
+          ),
         ],
       ),
     );
@@ -343,7 +555,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
 
   Widget _buildSummaryItem(String title, String value,
       double Function(double) fs,
-      {bool isTotal = false}) {
+      {bool isTotal = false, bool isDiscount = false}) {
     return Padding(
       padding: EdgeInsets.symmetric(vertical: fs(6)),
       child: Row(
@@ -357,7 +569,9 @@ class _PaymentScreenState extends State<PaymentScreen> {
           Text(value,
               style: TextStyle(
                   fontSize: fs(14),
-                  color: isTotal ? Color(0xFF1CC019) : Colors.grey[700],
+                  color: isDiscount 
+                      ? Colors.red 
+                      : isTotal ? Color(0xFF1CC019) : Colors.grey[700],
                   fontWeight: isTotal ? FontWeight.bold : FontWeight.normal)),
         ],
       ),
@@ -498,22 +712,21 @@ class _PaymentScreenState extends State<PaymentScreen> {
                         CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
                 : Row(mainAxisAlignment: MainAxisAlignment.center, children: [
                   Icon(
-  paymentType == "card"
-      ? Icons.payment
-      : Icons.shopping_cart_checkout,
-  size: fs(16),
-  color: Colors.white, // ✅ Yeh add karna hai
-),
-SizedBox(width: 6),
-Text(
-  paymentType == "card" ? "Pay Now" : "Confirm Order",
-  style: GoogleFonts.roboto(
-    fontSize: fs(14),
-    fontWeight: FontWeight.w600,
-    color: Colors.white,
-  ),
-),
-
+                    paymentType == "card"
+                        ? Icons.payment
+                        : Icons.shopping_cart_checkout,
+                    size: fs(16),
+                    color: Colors.white,
+                  ),
+                  SizedBox(width: 6),
+                  Text(
+                    paymentType == "card" ? "Pay Now" : "Confirm Order",
+                    style: GoogleFonts.roboto(
+                      fontSize: fs(14),
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
+                  ),
                   ]),
           ),
         )

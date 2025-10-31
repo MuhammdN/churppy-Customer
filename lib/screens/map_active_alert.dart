@@ -76,6 +76,8 @@ class _MapAlertsScreenState extends State<MapAlertsScreen> {
     final pos = await Geolocator.getCurrentPosition(
       desiredAccuracy: LocationAccuracy.high,
     );
+    debugPrint(
+        "📍 User Location: Latitude = ${pos.latitude}, Longitude = ${pos.longitude}");
 
     setState(() {
       _currentLatLng = LatLng(pos.latitude, pos.longitude);
@@ -105,35 +107,40 @@ class _MapAlertsScreenState extends State<MapAlertsScreen> {
     _fetchNearbyAlerts(pos.latitude, pos.longitude);
   }
 
-Future<void> _fetchNearbyAlerts(double lat, double lng) async {
-  final url = Uri.parse(
-      "https://churppy.eurekawebsolutions.com/api/nearby_merchants.php?lat=$lat&lng=$lng");
+  Future<void> _fetchNearbyAlerts(double lat, double lng) async {
+    final url = Uri.parse(
+        "https://churppy.eurekawebsolutions.com/api/nearby_merchants.php?lat=$lat&lng=$lng");
 
-  try {
-    final res = await http.get(url);
-    if (res.statusCode == 200) {
-      final data = jsonDecode(res.body);
-      if (data['status'] == 'success' && data['alerts'] is List) {
-        // ✅ get all alerts without filtering expired ones
-        final alerts = List<Map<String, dynamic>>.from(data['alerts']);
-
-        setState(() {
-          _alerts = alerts;
-          _filteredAlerts = alerts;
-          _loading = false;
-        });
+    try {
+      final res = await http.get(url);
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body);
+        if (data['status'] == 'success' && data['alerts'] is List) {
+          final alerts = List<Map<String, dynamic>>.from(data['alerts']);
+          for (var alert in alerts) {
+            if (alert['discount'] != null &&
+                alert['discount'].toString().isNotEmpty &&
+                alert['discount'].toString() != "0") {
+              debugPrint(
+                  "🔥 DISCOUNT ALERT FOUND → ${alert['discount']}% for ${alert['title']}");
+            }
+          }
+          setState(() {
+            _alerts = alerts;
+            _filteredAlerts = alerts;
+            _loading = false;
+          });
+        } else {
+          setState(() => _loading = false);
+        }
       } else {
         setState(() => _loading = false);
       }
-    } else {
+    } catch (e) {
+      debugPrint("❌ Error fetching alerts: $e");
       setState(() => _loading = false);
     }
-  } catch (e) {
-    debugPrint("❌ Error fetching alerts: $e");
-    setState(() => _loading = false);
   }
-}
-
 
   void _filterAlerts(String query) {
     setState(() {
@@ -208,54 +215,87 @@ Future<void> _fetchNearbyAlerts(double lat, double lng) async {
     ];
   }
 
-  Widget _mapPreview(LatLng? alertPos, double fs) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(fs),
-      child: SizedBox(
-        height: fs * 15,
-        width: double.infinity,
-        child: (alertPos == null)
-            ? const Center(child: Text("No location"))
-            : FlutterMap(
-                options: MapOptions(
-                  initialCenter: alertPos,
-                  initialZoom: 14,
-                ),
-                children: [
-                  TileLayer(
-                    urlTemplate:
-                        'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                    userAgentPackageName: 'com.churppy.customer',
-                  ),
-                  if (_currentLatLng != null)
-                    MarkerLayer(markers: [
-                      Marker(
-                        point: _currentLatLng!,
-                        width: 50,
-                        height: 50,
-                        child: const Icon(Icons.location_on,
-                            size: 40, color: Colors.red),
-                      )
-                    ]),
-                  MarkerLayer(
-                    markers: [
-                      Marker(
-                        point: alertPos,
-                        width: 40,
-                        height: 40,
-                        child: Transform.rotate(
-                          angle: 270 * 3.141592653589793 / 140,
-                          child: Image.asset(
-                            "assets/images/bell_churppy.png",
-                            fit: BoxFit.contain,
-                          ),
-                        ),
+  Widget _mapPreview(LatLng? alertPos, double fs, bool hasDiscount, String discount) {
+    return Stack(
+      children: [
+        ClipRRect(
+          borderRadius: BorderRadius.circular(fs),
+          child: SizedBox(
+            height: fs * 15,
+            width: double.infinity,
+            child: (alertPos == null)
+                ? const Center(child: Text("No location"))
+                : FlutterMap(
+                    options: MapOptions(
+                      initialCenter: alertPos,
+                      initialZoom: 14,
+                    ),
+                    children: [
+                      TileLayer(
+                        urlTemplate:
+                            'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                        userAgentPackageName: 'com.churppy.customer',
                       ),
+                      if (_currentLatLng != null)
+                        MarkerLayer(markers: [
+                          Marker(
+                            point: _currentLatLng!,
+                            width: 50,
+                            height: 50,
+                            child: const Icon(Icons.location_on,
+                                size: 40, color: Colors.red),
+                          )
+                        ]),
+                      MarkerLayer(
+                        markers: [
+                          Marker(
+                            point: alertPos,
+                            width: 40,
+                            height: 40,
+                            child: Transform.rotate(
+                              angle: 270 * 3.141592653589793 / 140,
+                              child: Image.asset(
+                                "assets/images/bell_churppy.png",
+                                fit: BoxFit.contain,
+                              ),
+                            ),
+                          ),
+                        ],
+                      )
                     ],
-                  )
+                  ),
+          ),
+        ),
+
+        // ✅ Discount badge if present
+        if (hasDiscount)
+          Positioned(
+            top: 10,
+            right: 10,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: Colors.redAccent,
+                borderRadius: BorderRadius.circular(8),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.2),
+                    blurRadius: 4,
+                    offset: const Offset(2, 2),
+                  ),
                 ],
               ),
-      ),
+              child: Text(
+                "$discount% OFF",
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                ),
+              ),
+            ),
+          ),
+      ],
     );
   }
 
@@ -277,6 +317,7 @@ Future<void> _fetchNearbyAlerts(double lat, double lng) async {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      // Header
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
@@ -309,6 +350,8 @@ Future<void> _fetchNearbyAlerts(double lat, double lng) async {
                         ],
                       ),
                       SizedBox(height: 14 * scale),
+
+                      // Search bar
                       Container(
                         padding: EdgeInsets.symmetric(
                             horizontal: 12 * scale, vertical: 8 * scale),
@@ -329,7 +372,8 @@ Future<void> _fetchNearbyAlerts(double lat, double lng) async {
                                   border: InputBorder.none,
                                   isDense: true,
                                   hintStyle: TextStyle(
-                                      fontSize: 14 * scale, color: Colors.grey),
+                                      fontSize: 14 * scale,
+                                      color: Colors.grey),
                                 ),
                                 style: TextStyle(fontSize: 14 * scale),
                               ),
@@ -339,6 +383,7 @@ Future<void> _fetchNearbyAlerts(double lat, double lng) async {
                         ),
                       ),
                       SizedBox(height: 14 * scale),
+
                       Text(
                         'MAP - Active Churppy Alerts',
                         style: TextStyle(
@@ -348,6 +393,7 @@ Future<void> _fetchNearbyAlerts(double lat, double lng) async {
                         ),
                       ),
                       SizedBox(height: 14 * scale),
+
                       if (_filteredAlerts.isEmpty)
                         const Text("No nearby alerts found",
                             style: TextStyle(color: Colors.black54))
@@ -355,8 +401,13 @@ Future<void> _fetchNearbyAlerts(double lat, double lng) async {
                         Column(
                           children: _filteredAlerts.map((a) {
                             final p = _parseLatLng(a['location']?.toString());
-                            final title = (a['title'] ?? a['type'] ?? 'Churppy Alert')
-                                .toString();
+                            final title =
+                                (a['title'] ?? 'Churppy Alert').toString();
+                            final discount =
+                                a['discount']?.toString() ?? '';
+                            final hasDiscount = discount.isNotEmpty &&
+                                discount != '0' &&
+                                discount != '0.0';
 
                             return Card(
                               elevation: 3,
@@ -369,11 +420,13 @@ Future<void> _fetchNearbyAlerts(double lat, double lng) async {
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    _mapPreview(p, 12 * scale),
+                                    _mapPreview(p, 12 * scale, hasDiscount, discount),
                                     SizedBox(height: 14 * scale),
+
+                                    // Title + Time left
                                     Row(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
                                       children: [
                                         Expanded(
                                           child: Text(
@@ -392,7 +445,8 @@ Future<void> _fetchNearbyAlerts(double lat, double lng) async {
                                                 size: 20 * scale),
                                             SizedBox(width: 6 * scale),
                                             Text(
-                                              a['time_left']?.toString() ?? 'N/A',
+                                              a['time_left']?.toString() ??
+                                                  'N/A',
                                               style: TextStyle(
                                                 fontSize: 15 * scale,
                                                 color: Colors.redAccent,
@@ -406,25 +460,29 @@ Future<void> _fetchNearbyAlerts(double lat, double lng) async {
                                     SizedBox(height: 10 * scale),
                                     ..._buildAddressLines(a, 14 * scale),
                                     SizedBox(height: 14 * scale),
+
+                                    // View Menu / Order
                                     Row(
                                       children: [
                                         Expanded(
                                           child: ElevatedButton(
-                                           onPressed: () {
-  Navigator.push(
-    context,
-    MaterialPageRoute(
-      builder: (_) => MenuScreen(
-        merchantId: a['merchant_id'],
-        categoryId: a['category_id'],   // ✅ ab ye available hai
-        title: a['title'] ?? '',
-        image: a['image'] ?? '',
-        description: a['description'] ?? '',
-      ),
-    ),
-  );
-},
-
+                                            onPressed: () {
+                                              Navigator.push(
+                                                context,
+                                                MaterialPageRoute(
+                                                  builder: (_) => MenuScreen(
+                                                    merchantId:
+                                                        a['merchant_id'],
+                                                    categoryId:
+                                                        a['category_id'],
+                                                    title: a['title'] ?? '',
+                                                    image: a['image'] ?? '',
+                                                    description:
+                                                        a['description'] ?? '',
+                                                  ),
+                                                ),
+                                              );
+                                            },
                                             style: ElevatedButton.styleFrom(
                                               backgroundColor:
                                                   const Color(0xFF1CC019),
@@ -453,6 +511,8 @@ Future<void> _fetchNearbyAlerts(double lat, double lng) async {
                                       ],
                                     ),
                                     SizedBox(height: 12 * scale),
+
+                                    // Directions
                                     Row(
                                       children: [
                                         Expanded(
@@ -501,26 +561,24 @@ Future<void> _fetchNearbyAlerts(double lat, double lng) async {
                 ),
               ),
       ),
-       // FAB → Alerts screen
-     floatingActionButton: FloatingActionButton(
-  onPressed: () {
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const ChurppyAlertsScreen()),
-    );
-  },
-  backgroundColor: const Color(0xFF6C2FA0),
-  shape: const CircleBorder(),
-  elevation: 6,
-  child: Padding(
-    padding: const EdgeInsets.all(10), // adjust for centering
-    child: Image.asset(
-      'assets/images/alert1.png', // 👈 your image file path
-      color: Colors.white, // ensure it stays white even if PNG has color
-      fit: BoxFit.contain,
-    ),
-  ),
-),
-
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const ChurppyAlertsScreen()),
+          );
+        },
+        backgroundColor: const Color(0xFF6C2FA0),
+        shape: const CircleBorder(),
+        elevation: 6,
+        child: Padding(
+          padding: const EdgeInsets.all(10),
+          child: Image.asset(
+            'assets/images/alert1.png',
+            color: Colors.white,
+            fit: BoxFit.contain,
+          ),
+        ),
+      ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       bottomNavigationBar: ChurppyNavbar(
         selectedIndex: 0,

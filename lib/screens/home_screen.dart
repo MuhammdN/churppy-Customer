@@ -5,7 +5,7 @@ import 'package:http/http.dart' as http;
 import 'package:geocoding/geocoding.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-// Screens (already in your project)
+// Screens
 import 'package:churppy_customer/screens/support.dart';
 import 'package:churppy_customer/screens/profile.dart';
 import 'package:churppy_customer/screens/menuScreen.dart';
@@ -14,19 +14,19 @@ import 'map_active_alert.dart';
 
 /// ========================= MODELS =========================
 
-// Alerts model -> csdp_merchant_alerts + csdp_business_infos join (PHP given)
 class AlertModel {
   final int id;
   final int merchantId;
-
-  final String title;        // ma.title
-  final String description;  // ma.description
-  final String image;        // ma.image (absolute URL via PHP/normalized)
-  final String startDate;    // ma.start_date
-  final String expiryDate;   // ma.expiry_date
-
-  final String businessLogo;   // b.business_logo (absolute URL via PHP/normalized)
-  final String businessTitle;  // b.about_us AS business_title
+  final String title;
+  final String description;
+  final String image;
+  final String startDate;
+  final String expiryDate;
+  final String businessLogo;
+  final String businessTitle;
+  final String? discount;
+  final String? timeLeft;
+  final double? distance;
 
   AlertModel({
     required this.id,
@@ -38,6 +38,9 @@ class AlertModel {
     required this.expiryDate,
     required this.businessLogo,
     required this.businessTitle,
+    this.discount,
+    this.timeLeft,
+    this.distance,
   });
 
   factory AlertModel.fromJson(Map<String, dynamic> json) {
@@ -51,18 +54,22 @@ class AlertModel {
       expiryDate: (json['expiry_date'] ?? '').toString(),
       businessLogo: (json['business_logo'] ?? '').toString(),
       businessTitle: (json['business_title'] ?? '').toString(),
+      discount: json['discount']?.toString(),
+      timeLeft: json['time_left']?.toString(),
+      distance: json['distance'] != null 
+          ? double.tryParse(json['distance'].toString())
+          : null,
     );
   }
 }
 
-// ✅ Businesses model (robust): API chahe `business_logo` de ya `image`, dono support
 class BusinessModel {
   final int id;
   final int merchantId;
   final String title;
   final String image;
   final String description;
-  final double? distance; // 👈 optional distance
+  final double? distance;
 
   BusinessModel({
     required this.id,
@@ -88,56 +95,35 @@ class BusinessModel {
   }
 }
 
-
 /// ========================= SERVICES =========================
+
 class AlertsService {
-  // parse helper
-  static DateTime? _parse(String s) {
-    if (s.isEmpty) return null;
+  static Future<List<AlertModel>> fetchAlerts({required double lat, required double lng}) async {
     try {
-      return DateTime.parse(s.replaceFirst(' ', 'T'));
-    } catch (_) {
-      return null;
-    }
-  }
-
-  // only active alerts (not expired). If start is future, hide until it starts.
-  static bool _isActive(AlertModel a) {
-    final start = _parse(a.startDate);
-    final end = _parse(a.expiryDate);
-    final now = DateTime.now();
-
-    if (start != null && start.isAfter(now)) return false; // scheduled, not started yet
-    if (end == null) return true;
-    return end.isAfter(now);
-  }
-
-  static Future<List<AlertModel>> fetchAlerts() async {
-    try {
-      final position = await Geolocator.getCurrentPosition(
-  desiredAccuracy: LocationAccuracy.high,
-);
-
-final res = await http.get(
-  Uri.parse(
-    "https://churppy.eurekawebsolutions.com/api/alerts.php"
-    "?lat=${position.latitude}&lng=${position.longitude}",
-  ),
-);
+      final res = await http.get(
+        Uri.parse(
+          "https://churppy.eurekawebsolutions.com/api/alerts.php"
+          "?lat=$lat&lng=$lng",
+        ),
+      );
 
       if (res.statusCode != 200) {
         throw Exception("Server error: ${res.statusCode}");
       }
+      
       final body = json.decode(res.body);
       if (body['status'] != 'success') {
         throw Exception(body['message'] ?? "Unexpected API response");
       }
-      final List data = body['data'] ?? [];
-      final list = data.map((e) => AlertModel.fromJson(e)).toList();
-
-      // filter: only active
-      final active = list.where(_isActive).toList();
-      return active;
+      
+      final List data = body['alerts'] ?? [];
+      final alerts = data.map((e) => AlertModel.fromJson(e)).toList();
+      
+      // Filter active alerts
+      return alerts.where((alert) {
+        return alert.timeLeft != "Expired" && alert.timeLeft != "N/A";
+      }).toList();
+      
     } catch (e) {
       throw Exception("Failed to fetch alerts: $e");
     }
@@ -145,11 +131,12 @@ final res = await http.get(
 }
 
 class BusinessService {
-  static Future<List<BusinessModel>> fetchBusinesses(
-      {required double lat, required double lng}) async {
+  static Future<List<BusinessModel>> fetchBusinesses({
+    required double lat, 
+    required double lng
+  }) async {
     try {
-      final url =
-          "https://churppy.eurekawebsolutions.com/api/businesses.php?lat=$lat&lng=$lng";
+      final url = "https://churppy.eurekawebsolutions.com/api/businesses.php?lat=$lat&lng=$lng";
       final response = await http.get(Uri.parse(url));
 
       if (response.statusCode == 200) {
@@ -169,8 +156,8 @@ class BusinessService {
   }
 }
 
-
 /// ========================= HOME SCREEN =========================
+
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -200,86 +187,80 @@ class _HomeScreenState extends State<HomeScreen> {
   // UI filters
   String selectedFilter = "All";
 
-@override
-@override
-void initState() {
-  super.initState();
+  @override
+  void initState() {
+    super.initState();
 
-  // ❌ Don't load any data initially
-  // futureAlerts = AlertsService.fetchAlerts();
-  // futureBusinesses = Future.value([]);
+    // Empty placeholders until permission is granted
+    futureAlerts = Future.value([]);
+    futureBusinesses = Future.value([]);
 
-  // ✅ Empty placeholders until permission is granted
-  futureAlerts = Future.value([]);
-  futureBusinesses = Future.value([]);
+    _loadUserProfile();
+    _searchController.addListener(_onSearchChanged);
 
-  _loadUserProfile();
-  _searchController.addListener(_onSearchChanged);
+    // Wait until user enables location first
+    _getLocationAndLoad();
+  }
 
-  // ✅ Wait until user enables location first
-  _getLocationAndLoad();
-}
-
-
-Future<void> _getLocationAndLoad() async {
-  try {
-    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-    if (!serviceEnabled) {
-      // Ask user to enable location first
-      await Geolocator.openLocationSettings();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Please enable Location Services to continue."),
-        ),
-      );
-      return;
-    }
-
-    LocationPermission permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission();
-      if (permission == LocationPermission.denied) {
+  Future<void> _getLocationAndLoad() async {
+    try {
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        await Geolocator.openLocationSettings();
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text("Location permission is required to load nearby data."),
+            content: Text("Please enable Location Services to continue."),
           ),
         );
         return;
       }
-    }
 
-    if (permission == LocationPermission.deniedForever) {
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text("Location permission is required to load nearby data."),
+            ),
+          );
+          return;
+        }
+      }
+
+      if (permission == LocationPermission.deniedForever) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Enable location permission from settings to continue."),
+          ),
+        );
+        await Geolocator.openAppSettings();
+        return;
+      }
+
+      // Only now fetch real location and load alerts + businesses
+      final position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
+
+      setState(() {
+        futureAlerts = AlertsService.fetchAlerts(
+          lat: position.latitude, 
+          lng: position.longitude
+        );
+        futureBusinesses = BusinessService.fetchBusinesses(
+          lat: position.latitude,
+          lng: position.longitude,
+        );
+      });
+
+    } catch (e) {
+      print("❌ Location error: $e");
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Enable location permission from settings to continue."),
-        ),
+        SnackBar(content: Text("Failed to get location: $e")),
       );
-      await Geolocator.openAppSettings();
-      return;
     }
-
-    // ✅ Only now fetch real location and load alerts + businesses
-    final position = await Geolocator.getCurrentPosition(
-      desiredAccuracy: LocationAccuracy.high,
-    );
-
-    setState(() {
-      futureAlerts = AlertsService.fetchAlerts();
-      futureBusinesses = BusinessService.fetchBusinesses(
-        lat: position.latitude,
-        lng: position.longitude,
-      );
-    });
-
-  } catch (e) {
-    print("❌ Location error: $e");
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text("Failed to get location: $e")),
-    );
   }
-}
-
-
 
   @override
   void dispose() {
@@ -293,7 +274,7 @@ Future<void> _getLocationAndLoad() async {
   String _absUrl(String url) {
     if (url.isEmpty) return url;
     if (url.startsWith('http://') || url.startsWith('https://')) return url;
-    const base = 'https://churppy.eurekawebsolutions.com/'; // apna domain
+    const base = 'https://churppy.eurekawebsolutions.com/';
     final cleaned = url.replaceFirst(RegExp(r'^/+'), '');
     return '$base$cleaned';
   }
@@ -340,7 +321,8 @@ Future<void> _getLocationAndLoad() async {
     futureAlerts.then((alerts) {
       final list = alerts.where((a) {
         return a.title.toLowerCase().contains(query) ||
-            a.businessTitle.toLowerCase().contains(query);
+            a.businessTitle.toLowerCase().contains(query) ||
+            a.description.toLowerCase().contains(query);
       }).toList();
       if (mounted) setState(() => filteredAlerts = list);
     });
@@ -379,24 +361,23 @@ Future<void> _getLocationAndLoad() async {
                   children: [
                     Image.asset('assets/images/logo.png', width: fs(100)),
                     GestureDetector(
-  onTap: () {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => const ProfileScreen()),
-    );
-  },
-  child: CircleAvatar(
-    radius: fs(20),
-    backgroundColor: Colors.grey[300],
-    backgroundImage: _profileImageUrl != null && _profileImageUrl!.startsWith("http")
-        ? NetworkImage(_profileImageUrl!)
-        : null,
-    child: (_profileImageUrl == null || !_profileImageUrl!.startsWith("http"))
-        ? Icon(Icons.person, size: fs(20), color: Colors.grey[800])
-        : null,
-  ),
-)
-
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => const ProfileScreen()),
+                        );
+                      },
+                      child: CircleAvatar(
+                        radius: fs(20),
+                        backgroundColor: Colors.grey[300],
+                        backgroundImage: _profileImageUrl != null && _profileImageUrl!.startsWith("http")
+                            ? NetworkImage(_profileImageUrl!)
+                            : null,
+                        child: (_profileImageUrl == null || !_profileImageUrl!.startsWith("http"))
+                            ? Icon(Icons.person, size: fs(20), color: Colors.grey[800])
+                            : null,
+                      ),
+                    )
                   ],
                 ),
 
@@ -484,6 +465,7 @@ Future<void> _getLocationAndLoad() async {
                 if (!_isSearching) _categoryFilters(fs),
                 if (!_isSearching || filteredBusinesses.isNotEmpty) SizedBox(height: fs(16)),
 
+                // Businesses Grid
                 FutureBuilder<List<BusinessModel>>(
                   future: futureBusinesses,
                   builder: (context, snapshot) {
@@ -500,21 +482,14 @@ Future<void> _getLocationAndLoad() async {
 
                     // ✅ FILTER LOGIC
                     List<BusinessModel> displayList = businesses;
-                   if (selectedFilter != 'All') {
-  String filter = selectedFilter.toLowerCase();
-
-  displayList = businesses.where((b) {
-    final title = b.title.toLowerCase();
-    final desc  = b.description.toLowerCase();
-
-    // ✅ FULL PHRASE match required
-    if (title.contains(filter)) return true;
-    if (desc.contains(filter)) return true;
-
-    return false;
-  }).toList();
-}
-
+                    if (selectedFilter != 'All') {
+                      String filter = selectedFilter.toLowerCase();
+                      displayList = businesses.where((b) {
+                        final title = b.title.toLowerCase();
+                        final desc  = b.description.toLowerCase();
+                        return title.contains(filter) || desc.contains(filter);
+                      }).toList();
+                    }
 
                     if (displayList.isEmpty) {
                       return Padding(
@@ -579,24 +554,24 @@ Future<void> _getLocationAndLoad() async {
       ),
 
       // FAB → Alerts screen
-     floatingActionButton: FloatingActionButton(
-  onPressed: () {
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const ChurppyAlertsScreen()),
-    );
-  },
-  backgroundColor: const Color(0xFF6C2FA0),
-  shape: const CircleBorder(),
-  elevation: 6,
-  child: Padding(
-    padding: const EdgeInsets.all(10), // adjust for centering
-    child: Image.asset(
-      'assets/images/alert1.png', // 👈 your image file path
-      color: Colors.white, // ensure it stays white even if PNG has color
-      fit: BoxFit.contain,
-    ),
-  ),
-),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const ChurppyAlertsScreen()),
+          );
+        },
+        backgroundColor: const Color(0xFF6C2FA0),
+        shape: const CircleBorder(),
+        elevation: 6,
+        child: Padding(
+          padding: const EdgeInsets.all(10),
+          child: Image.asset(
+            'assets/images/alert1.png',
+            color: Colors.white,
+            fit: BoxFit.contain,
+          ),
+        ),
+      ),
 
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
 
@@ -688,45 +663,6 @@ Future<void> _getLocationAndLoad() async {
     );
   }
 
-  // Time label using start/expiry
-  String _timeLabel({required String start, required String end}) {
-    DateTime? parse(String s) {
-      if (s.isEmpty) return null;
-      try {
-        return DateTime.parse(s.replaceFirst(' ', 'T'));
-      } catch (_) {
-        return null;
-      }
-    }
-
-    final now = DateTime.now();
-    final startDt = parse(start);
-    final endDt = parse(end);
-
-    Duration? diff;
-    String suffix = " Left";
-
-    if (startDt != null && startDt.isAfter(now)) {
-      diff = startDt.difference(now);
-      suffix = " to Start";
-    } else if (endDt != null) {
-      diff = endDt.difference(now);
-      if (diff.isNegative) return "Expired";
-    } else {
-      return "";
-    }
-
-    final days = diff.inDays;
-    final hours = diff.inHours % 24;
-    final mins = diff.inMinutes % 60;
-
-    if (days > 0 && hours > 0) return "$days Days & $hours Hours$suffix";
-    if (days > 0) return "$days Days$suffix";
-    if (hours > 0 && mins > 0) return "$hours Hours $mins Min$suffix";
-    if (hours > 0) return "$hours Hours$suffix";
-    return "$mins Min$suffix";
-  }
-
   /// Horizontal Scrollable Filters
   Widget _categoryFilters(double Function(double) fs) {
     final filters = [
@@ -746,7 +682,6 @@ Future<void> _getLocationAndLoad() async {
       'Delivery Available',
       'Takeaway',
       'Specials',
-      
     ];
 
     return SizedBox(
@@ -964,7 +899,7 @@ Future<void> _getLocationAndLoad() async {
   }
 }
 
-/// Alert Card widget (separate class for clarity)
+/// Alert Card widget
 class _AlertCard extends StatelessWidget {
   final double Function(double) fs;
   final AlertModel alert;
@@ -983,9 +918,7 @@ class _AlertCard extends StatelessWidget {
     final desc = alert.description.isNotEmpty
         ? alert.description
         : "truck is serving in your area\nTime is ticking. Place order now!";
-    final timeLabel = (context.findAncestorStateOfType<_HomeScreenState>())
-        ?._timeLabel(start: alert.startDate, end: alert.expiryDate) ??
-        "";
+    final timeLabel = alert.timeLeft ?? "";
 
     String _abs(String url) {
       if (url.isEmpty) return url;
