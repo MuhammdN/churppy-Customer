@@ -222,7 +222,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                   children: [
                     const Icon(Icons.star, color: Colors.orange, size: 16),
                     SizedBox(width: fs(4)),
-                    Text("4.9", style: TextStyle(fontSize: fs(12))),
+                    Text("5.0", style: TextStyle(fontSize: fs(12))),
                     SizedBox(width: fs(8)),
                     const Text("–", style: TextStyle(fontSize: 12)),
                     SizedBox(width: fs(8)),
@@ -256,7 +256,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                         if (count > 1) count--;
                       }),
                       icon: const Icon(Icons.remove_circle,
-                          color: Color(0xFF1CC019),),
+                          color: Color(0xFF8DC63F),),
                     ),
                     Text(
                       '$count',
@@ -267,7 +267,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                       onPressed: () => setState(() {
                         count++;
                       }),
-                      icon: const Icon(Icons.add_circle, color: const Color(0xFF1CC019),),
+                      icon: const Icon(Icons.add_circle, color: const Color(0xFF8DC63F),),
                     ),
                   ],
                 ),
@@ -281,7 +281,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                       child: Container(
                         height: fs(52),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF5F3CC4),
+                          color: const Color(0xFF804692),
                           borderRadius: BorderRadius.circular(fs(12)),
                         ),
                         alignment: Alignment.center,
@@ -326,7 +326,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                         child: Container(
                           height: fs(52),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF1CC019),
+                            color: const Color(0xFF8DC63F),
                             borderRadius: BorderRadius.circular(fs(12)),
                           ),
                           alignment: Alignment.center,

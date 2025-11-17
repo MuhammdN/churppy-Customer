@@ -21,7 +21,7 @@ class ChurppyNavbar extends StatelessWidget {
 
     return BottomAppBar(
       shape: const CircularNotchedRectangle(),
-      color: const Color(0xFF6C2FA0),
+      color: const Color(0xFF804692),
       notchMargin: 8.0,
       child: SizedBox(
         height: 65,

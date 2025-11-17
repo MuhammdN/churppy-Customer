@@ -485,7 +485,7 @@ class _MapAlertsScreenState extends State<MapAlertsScreen> {
                                             },
                                             style: ElevatedButton.styleFrom(
                                               backgroundColor:
-                                                  const Color(0xFF1CC019),
+                                                  const Color(0xFF8DC63F),
                                               padding: EdgeInsets.symmetric(
                                                   vertical: 14 * scale),
                                               shape: RoundedRectangleBorder(
@@ -567,7 +567,7 @@ class _MapAlertsScreenState extends State<MapAlertsScreen> {
             MaterialPageRoute(builder: (_) => const ChurppyAlertsScreen()),
           );
         },
-        backgroundColor: const Color(0xFF6C2FA0),
+        backgroundColor: const Color(0xFF804692),
         shape: const CircleBorder(),
         elevation: 6,
         child: Padding(

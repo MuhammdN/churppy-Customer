@@ -9,6 +9,10 @@ import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'auth/login.dart';
 import 'package:http/http.dart' as http;
+import 'package:geolocator/geolocator.dart';
+import 'package:geocoding/geocoding.dart';
+import 'package:flutter_typeahead/flutter_typeahead.dart';
+import 'package:country_picker/country_picker.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -28,6 +32,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
   bool _isEditing = false;
   bool _isLoading = false;
   int? _userId;
+  String? _userCountryCode;
+  Country? _selectedCountry;
 
   final TextEditingController _firstNameController = TextEditingController();
   final TextEditingController _lastNameController = TextEditingController();
@@ -44,7 +50,121 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   void initState() {
     super.initState();
+    _selectedCountry = Country(
+      phoneCode: '1',
+      countryCode: 'US',
+      e164Sc: 0,
+      geographic: true,
+      level: 1,
+      name: 'United States',
+      example: '',
+      displayName: 'United States',
+      displayNameNoCountryCode: 'United States',
+      e164Key: '',
+    );
     _loadUserIdAndFetchData();
+    _detectUserCountry();
+  }
+
+  /// 🌍 Detect user's country based on GPS
+  Future<void> _detectUserCountry() async {
+    try {
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) return;
+
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) return;
+      }
+      if (permission == LocationPermission.deniedForever) return;
+
+      Position pos = await Geolocator.getCurrentPosition(
+          desiredAccuracy: LocationAccuracy.high);
+
+      List<Placemark> placemarks =
+          await placemarkFromCoordinates(pos.latitude, pos.longitude);
+
+      if (placemarks.isNotEmpty) {
+        final countryCode = placemarks.first.isoCountryCode ?? "US";
+        final countryName = placemarks.first.country ?? "United States";
+
+        setState(() {
+          _userCountryCode = countryCode;
+          _selectedCountry = Country.tryParse(countryCode);
+        });
+
+        debugPrint("🌎 Detected Country: $countryName ($countryCode)");
+      }
+    } catch (e) {
+      debugPrint("⚠️ Country detection failed: $e");
+    }
+  }
+
+  /// 🧭 Fetch address suggestions from OpenStreetMap, filtered by user country
+  Future<List<Map<String, dynamic>>> fetchAddressSuggestions(String query) async {
+    await Future.delayed(const Duration(milliseconds: 400));
+    if (query.isEmpty) return [];
+
+    String countryFilter =
+        (_userCountryCode != null) ? "&countrycodes=${_userCountryCode!.toLowerCase()}" : "";
+
+    final uri = Uri.parse(
+        'https://nominatim.openstreetmap.org/search?q=${Uri.encodeComponent(query)}&format=json&addressdetails=1&limit=6$countryFilter');
+
+    final resp = await http.get(uri, headers: {
+      'User-Agent': 'ChurppyApp/1.0 (support@churppy.com)',
+    });
+
+    if (resp.statusCode == 200) {
+      final List data = json.decode(resp.body);
+      return data.cast<Map<String, dynamic>>();
+    } else {
+      return [];
+    }
+  }
+
+  /// 📍 Use current location and fill in address
+  Future<void> useCurrentLocation() async {
+    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enable location services')),
+      );
+      return;
+    }
+
+    LocationPermission permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) return;
+    }
+    if (permission == LocationPermission.deniedForever) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Location permissions are permanently denied')),
+      );
+      return;
+    }
+
+    Position pos = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high);
+
+    List<Placemark> placemarks =
+        await placemarkFromCoordinates(pos.latitude, pos.longitude);
+
+    if (placemarks.isNotEmpty) {
+      final address = placemarks.first;
+      final readableAddress =
+          "${address.street ?? ''}, ${address.locality ?? ''}, ${address.administrativeArea ?? ''}, ${address.postalCode ?? ''}";
+
+      setState(() {
+        _addressController.text = readableAddress;
+        _userCountryCode = address.isoCountryCode ?? "US";
+      });
+    }
+
+    debugPrint("📍 Current Location: ${pos.latitude},${pos.longitude}");
   }
 
   Future<void> _loadUserIdAndFetchData() async {
@@ -163,6 +283,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
+  /// 🚪 NEW: Logout confirmation method
   Future<void> _confirmLogout() async {
     final ok = await showDialog<bool>(
       context: context,
@@ -214,157 +335,154 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               color: Colors.white, size: 20),
                           onPressed: () => Navigator.pop(context),
                         ),
-                       IconButton(
-  icon: const Icon(Icons.settings, color: Colors.white, size: 22),
-  onPressed: () {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) => Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Center(
-              child: Icon(Icons.settings, color: Color(0xFF804692), size: 40),
-            ),
-            const SizedBox(height: 10),
-            const Center(
-              child: Text(
-                "Settings",
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF804692),
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
+                        IconButton(
+                          icon: const Icon(Icons.settings, color: Colors.white, size: 22),
+                          onPressed: () {
+                            showModalBottomSheet(
+                              context: context,
+                              backgroundColor: Colors.white,
+                              shape: const RoundedRectangleBorder(
+                                borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                              ),
+                              builder: (context) => Padding(
+                                padding: const EdgeInsets.all(16.0),
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Center(
+                                      child: Icon(Icons.settings, color: Color(0xFF804692), size: 40),
+                                    ),
+                                    const SizedBox(height: 10),
+                                    const Center(
+                                      child: Text(
+                                        "Settings",
+                                        style: TextStyle(
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.bold,
+                                          color: Color(0xFF804692),
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 16),
 
-            // Privacy Policy
-            ListTile(
-              leading: const Icon(Icons.privacy_tip_outlined,
-                  color: Colors.black87),
-              title: const Text("Privacy Policy"),
-              onTap: () {
-                Navigator.pop(context);
-                showDialog(
-                  context: context,
-                  builder: (ctx) => AlertDialog(
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
-                    title: const Text("Privacy Policy",
-                        style: TextStyle(
-                            color: Color(0xFF804692),
-                            fontWeight: FontWeight.bold)),
-                    content: const Text(
-                      "We value your privacy. Your personal data such as name, "
-                      "email, and location are used only for improving your "
-                      "Churppy experience. We do not share your information with "
-                      "any third party. For detailed terms, please visit our "
-                      "Privacy Policy section in the app settings.",
-                      style: TextStyle(fontSize: 14, height: 1.4),
-                    ),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(ctx),
-                        child: const Text(
-                          "OK",
-                          style: TextStyle(
-                              color: Color(0xFF804692),
-                              fontWeight: FontWeight.bold),
+                                    // Privacy Policy
+                                    ListTile(
+                                      leading: const Icon(Icons.privacy_tip_outlined,
+                                          color: Colors.black87),
+                                      title: const Text("Privacy Policy"),
+                                      onTap: () {
+                                        Navigator.pop(context);
+                                        showDialog(
+                                          context: context,
+                                          builder: (ctx) => AlertDialog(
+                                            shape: RoundedRectangleBorder(
+                                                borderRadius: BorderRadius.circular(12)),
+                                            title: const Text("Privacy Policy",
+                                                style: TextStyle(
+                                                    color: Color(0xFF804692),
+                                                    fontWeight: FontWeight.bold)),
+                                            content: const Text(
+                                              "We value your privacy. Your personal data such as name, "
+                                              "email, and location are used only for improving your "
+                                              "Churppy experience. We do not share your information with "
+                                              "any third party. For detailed terms, please visit our "
+                                              "Privacy Policy section in the app settings.",
+                                              style: TextStyle(fontSize: 14, height: 1.4),
+                                            ),
+                                            actions: [
+                                              TextButton(
+                                                onPressed: () => Navigator.pop(ctx),
+                                                child: const Text(
+                                                  "OK",
+                                                  style: TextStyle(
+                                                      color: Color(0xFF804692),
+                                                      fontWeight: FontWeight.bold),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        );
+                                      },
+                                    ),
+
+                                    // About App
+                                    ListTile(
+                                      leading: const Icon(Icons.info_outline, color: Colors.black87),
+                                      title: const Text("About App"),
+                                      onTap: () {
+                                        Navigator.pop(context);
+                                        showDialog(
+                                          context: context,
+                                          builder: (ctx) => AlertDialog(
+                                            shape: RoundedRectangleBorder(
+                                                borderRadius: BorderRadius.circular(12)),
+                                            title: const Text("About Churppy",
+                                                style: TextStyle(
+                                                    color: Color(0xFF804692),
+                                                    fontWeight: FontWeight.bold)),
+                                            content: const Text(
+                                              "Churppy is your trusted food discovery app — helping you "
+                                              "find nearby food trucks, restaurants, cafés, and deals. "
+                                              "We aim to connect customers with the best local dining "
+                                              "experiences, ensuring freshness, convenience, and joy.\n\n"
+                                              "Version: 1.0.0\n© 2025 Churppy.",
+                                              style: TextStyle(fontSize: 14, height: 1.4),
+                                            ),
+                                            actions: [
+                                              TextButton(
+                                                onPressed: () => Navigator.pop(ctx),
+                                                child: const Text(
+                                                  "Close",
+                                                  style: TextStyle(
+                                                      color: Color(0xFF804692),
+                                                      fontWeight: FontWeight.bold),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        );
+                                      },
+                                    ),
+
+                                    ListTile(
+                                      leading: const Icon(Icons.contact_support_outlined, 
+                                          color: Colors.black87),
+                                      title: const Text("Contact Us"),
+                                      onTap: () {
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(builder: (context) => ContactUsScreen()),
+                                        );
+                                      },
+                                    ),
+
+                                    const SizedBox(height: 10),
+                                    Center(
+                                      child: ElevatedButton.icon(
+                                        onPressed: () {
+                                          Navigator.pop(context);
+                                        },
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: const Color(0xFF804692),
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(30),
+                                          ),
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 24, vertical: 12),
+                                        ),
+                                        icon: const Icon(Icons.check, color: Colors.white),
+                                        label:
+                                            const Text("Done", style: TextStyle(color: Colors.white)),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
                         ),
-                      ),
-                    ],
-                  ),
-                );
-              },
-            ),
-
-            // About App
-            ListTile(
-              leading: const Icon(Icons.info_outline, color: Colors.black87),
-              title: const Text("About App"),
-              onTap: () {
-                Navigator.pop(context);
-                showDialog(
-                  context: context,
-                  builder: (ctx) => AlertDialog(
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
-                    title: const Text("About Churppy",
-                        style: TextStyle(
-                            color: Color(0xFF804692),
-                            fontWeight: FontWeight.bold)),
-                    content: const Text(
-                      "Churppy is your trusted food discovery app — helping you "
-                      "find nearby food trucks, restaurants, cafés, and deals. "
-                      "We aim to connect customers with the best local dining "
-                      "experiences, ensuring freshness, convenience, and joy.\n\n"
-                      "Version: 1.0.0\n© 2025 Churppy.",
-                      style: TextStyle(fontSize: 14, height: 1.4),
-                    ),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(ctx),
-                        child: const Text(
-                          "Close",
-                          style: TextStyle(
-                              color: Color(0xFF804692),
-                              fontWeight: FontWeight.bold),
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              },
-            ),
-
-          
-            ListTile(
-              leading: const Icon(Icons.contact_support_outlined, 
-                  color: Colors.black87),
-              title: const Text("Contact Us"),
-              onTap: () {
-  Navigator.push(
-    context,
-    MaterialPageRoute(builder: (context) => ContactUsScreen()),
-  );
-},
-
-            ),
-
-            const SizedBox(height: 10),
-            Center(
-              child: ElevatedButton.icon(
-                onPressed: () {
-                  Navigator.pop(context);
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF804692),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(30),
-                  ),
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 24, vertical: 12),
-                ),
-                icon: const Icon(Icons.check, color: Colors.white),
-                label:
-                    const Text("Done", style: TextStyle(color: Colors.white)),
-              ),
-            ),
-            const SizedBox(height: 8),
-          ],
-        ),
-      ),
-    );
-  },
-),
-
                       ],
                     ),
                   ),
@@ -423,9 +541,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             _labeledField("Email",
                                 controller: _emailController,
                                 hint: "email@churppy.com"),
-                            _labeledField("Address",
-                                controller: _addressController,
-                                hint: "Your address"),
+                            
+                            // 🏠 UPDATED: Address field with API integration
+                            _addressField(),
+                            
                             _passwordField(),
                             const SizedBox(height: 6),
                             const Divider(),
@@ -468,7 +587,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 const SizedBox(width: 12),
                                 Expanded(
                                   child: OutlinedButton(
-                                    onPressed: _confirmLogout,
+                                    onPressed: _confirmLogout, // ✅ NOW WORKING
                                     style: OutlinedButton.styleFrom(
                                       side: BorderSide(color: _green, width: 2),
                                       shape: const StadiumBorder(),
@@ -488,7 +607,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                         Container(
                                           padding: const EdgeInsets.all(6),
                                           decoration: BoxDecoration(
-                                            color: _green,
+                                            color: Color(0xFF8DC63F),
                                             borderRadius:
                                                 BorderRadius.circular(14),
                                           ),
@@ -510,6 +629,104 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                 ],
               ),
+      ),
+    );
+  }
+
+  // 🏠 NEW: Address field with autocomplete
+  Widget _addressField() {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text("Address",
+              style: TextStyle(
+                  color: Colors.black54,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500)),
+          const SizedBox(height: 6),
+          _isEditing 
+            ? TypeAheadField<Map<String, dynamic>>(
+                controller: _addressController,
+                suggestionsCallback: fetchAddressSuggestions,
+                builder: (context, controller, focusNode) {
+                  return TextField(
+                    controller: controller,
+                    focusNode: focusNode,
+                    enabled: _isEditing,
+                    decoration: InputDecoration(
+                      hintText: 'Enter Address',
+                      suffixIcon: IconButton(
+                        icon: const Icon(Icons.my_location_rounded),
+                        onPressed: useCurrentLocation,
+                      ),
+                      isDense: true,
+                      contentPadding:
+                          const EdgeInsets.symmetric(vertical: 14, horizontal: 14),
+                      filled: true,
+                      fillColor: _chipBg,
+                      border: OutlineInputBorder(
+                        borderSide: BorderSide.none,
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
+                  );
+                },
+                itemBuilder: (context, suggestion) {
+                  final address = suggestion['address'] ?? {};
+                  final parts = [
+                    address['road'],
+                    address['city'],
+                    address['state'],
+                    address['postcode'],
+                  ].where((e) =>
+                      e != null &&
+                      e.toString().trim().isNotEmpty).toList();
+
+                  final shortAddress = parts.join(", ");
+
+                  return ListTile(
+                    title: Text(
+                      shortAddress.isNotEmpty
+                          ? shortAddress
+                          : (suggestion['display_name'] ?? ''),
+                    ),
+                  );
+                },
+                onSelected: (suggestion) {
+                  final address = suggestion['address'] ?? {};
+                  final parts = [
+                    address['road'],
+                    address['city'],
+                    address['state'],
+                    address['postcode'],
+                  ].where((e) =>
+                      e != null &&
+                      e.toString().trim().isNotEmpty).toList();
+                  _addressController.text = parts.join(", ");
+                },
+                emptyBuilder: (context) =>
+                    const ListTile(
+                        title: Text('No results found')),
+              )
+            : TextField(
+                controller: _addressController,
+                enabled: false,
+                decoration: InputDecoration(
+                  hintText: 'Address',
+                  isDense: true,
+                  contentPadding:
+                      const EdgeInsets.symmetric(vertical: 14, horizontal: 14),
+                  filled: true,
+                  fillColor: _chipBg,
+                  border: OutlineInputBorder(
+                    borderSide: BorderSide.none,
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+              ),
+        ],
       ),
     );
   }

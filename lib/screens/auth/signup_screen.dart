@@ -1,9 +1,14 @@
 import 'dart:convert';
+import 'package:churppy_customer/screens/home_screen.dart';
+import 'package:churppy_customer/screens/otp_verify.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:country_picker/country_picker.dart';
 import 'package:flutter_typeahead/flutter_typeahead.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:geocoding/geocoding.dart';
+
 import 'login.dart';
 
 class SignupScreen extends StatefulWidget {
@@ -16,6 +21,7 @@ class SignupScreen extends StatefulWidget {
 class _SignupScreenState extends State<SignupScreen> {
   bool isLoading = false;
   Country? selectedCountry;
+  String? userCountryCode;
 
   final TextEditingController addressCtrl = TextEditingController();
   final TextEditingController firstNameCtrl = TextEditingController();
@@ -41,18 +47,57 @@ class _SignupScreenState extends State<SignupScreen> {
       displayNameNoCountryCode: 'United States',
       e164Key: '',
     );
+    _detectUserCountry();
   }
 
-  // 🧭 Fetch address suggestions from OpenStreetMap (Nominatim)
+  /// 🌍 Detect user's country based on GPS
+  Future<void> _detectUserCountry() async {
+    try {
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) return;
+
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) return;
+      }
+      if (permission == LocationPermission.deniedForever) return;
+
+      Position pos = await Geolocator.getCurrentPosition(
+          desiredAccuracy: LocationAccuracy.high);
+
+      List<Placemark> placemarks =
+          await placemarkFromCoordinates(pos.latitude, pos.longitude);
+
+      if (placemarks.isNotEmpty) {
+        final countryCode = placemarks.first.isoCountryCode ?? "US";
+        final countryName = placemarks.first.country ?? "United States";
+
+        setState(() {
+          userCountryCode = countryCode;
+          selectedCountry = Country.tryParse(countryCode);
+        });
+
+        debugPrint("🌎 Detected Country: $countryName ($countryCode)");
+      }
+    } catch (e) {
+      debugPrint("⚠️ Country detection failed: $e");
+    }
+  }
+
+  /// 🧭 Fetch address suggestions from OpenStreetMap, filtered by user country
   Future<List<Map<String, dynamic>>> fetchSuggestions(String query) async {
-    await Future.delayed(const Duration(milliseconds: 400)); // debounce
+    await Future.delayed(const Duration(milliseconds: 400));
     if (query.isEmpty) return [];
 
+    String countryFilter =
+        (userCountryCode != null) ? "&countrycodes=${userCountryCode!.toLowerCase()}" : "";
+
     final uri = Uri.parse(
-        'https://nominatim.openstreetmap.org/search?q=${Uri.encodeComponent(query)}&format=json&addressdetails=1&limit=6');
+        'https://nominatim.openstreetmap.org/search?q=${Uri.encodeComponent(query)}&format=json&addressdetails=1&limit=6$countryFilter');
 
     final resp = await http.get(uri, headers: {
-      'User-Agent': 'ChurppyApp/1.0 (churppy@example.com)',
+      'User-Agent': 'ChurppyApp/1.0 (support@churppy.com)',
     });
 
     if (resp.statusCode == 200) {
@@ -63,7 +108,7 @@ class _SignupScreenState extends State<SignupScreen> {
     }
   }
 
-  // 📍 Use current location and fill in address
+  /// 📍 Use current location and fill in address
   Future<void> useCurrentLocation() async {
     bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
@@ -89,11 +134,21 @@ class _SignupScreenState extends State<SignupScreen> {
     Position pos = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high);
 
-    setState(() {
-      addressCtrl.text = "${pos.latitude},${pos.longitude}";
-    });
+    List<Placemark> placemarks =
+        await placemarkFromCoordinates(pos.latitude, pos.longitude);
 
-    print("📍 Current Location: ${pos.latitude},${pos.longitude}");
+    if (placemarks.isNotEmpty) {
+      final address = placemarks.first;
+      final readableAddress =
+          "${address.street ?? ''}, ${address.locality ?? ''}, ${address.administrativeArea ?? ''}, ${address.postalCode ?? ''}";
+
+      setState(() {
+        addressCtrl.text = readableAddress;
+        userCountryCode = address.isoCountryCode ?? "US";
+      });
+    }
+
+    debugPrint("📍 Current Location: ${pos.latitude},${pos.longitude}");
   }
 
   bool _validateInputs() {
@@ -126,55 +181,64 @@ class _SignupScreenState extends State<SignupScreen> {
     return _errors.isEmpty;
   }
 
+  /// 🔐 Signup + Session handling + Redirect to HomeScreen
   Future<void> _signup() async {
-    if (!_validateInputs()) return;
+  if (!_validateInputs()) return;
 
-    setState(() => isLoading = true);
+  setState(() => isLoading = true);
 
-    final url =
-        Uri.parse("https://churppy.eurekawebsolutions.com/api/signup.php");
+  final url = Uri.parse("https://churppy.eurekawebsolutions.com/api/send_otp.php");
 
-    final requestBody = {
-      "firstname": firstNameCtrl.text.trim(),
-      "lastname": lastNameCtrl.text.trim(),
-      "user_phone":
-          "+${selectedCountry?.phoneCode ?? '1'}${phoneCtrl.text.trim()}",
-      "email": emailCtrl.text.trim(),
-      "password": passwordCtrl.text.trim(),
-      "address": addressCtrl.text.trim(),
-    };
+  // ✅ CORRECTED FIELD NAMES TO MATCH PHP
+  final requestBody = {
+    "firstname": firstNameCtrl.text.trim(),
+    "lastname": lastNameCtrl.text.trim(),
+    "email": emailCtrl.text.trim(),
+    "password": passwordCtrl.text.trim(),
+    "user_phone": "+${selectedCountry?.phoneCode ?? '1'}${phoneCtrl.text.trim()}", // ✅ CHANGED: phone → user_phone
+    "address": addressCtrl.text.trim(),
+  };
 
-    try {
-      final response = await http.post(url, body: requestBody);
+  try {
+    final response = await http.post(url, body: requestBody);
+    final result = json.decode(response.body);
 
+    print("📩 SEND OTP Request Body: $requestBody");
+    print("📩 SEND OTP Response: ${response.body}");
+
+    if (result['status'] == 'success') {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Response Code: ${response.statusCode}")),
+        const SnackBar(content: Text("✅ OTP sent to your email")),
       );
 
-      final result = json.decode(response.body);
+      if (!mounted) return;
 
-      if (result['status'] == 'success') {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("✅ Signup successful! Please login.")),
-        );
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const LoginScreen()),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("❌ API responded: ${result['message']}")),
-        );
-      }
-    } catch (e) {
-      print("⚠️ Error: $e");
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Failed to connect: $e")),
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => OTPVerifyScreen(
+            firstname: firstNameCtrl.text.trim(),
+            lastname: lastNameCtrl.text.trim(),
+            phone: "+${selectedCountry?.phoneCode ?? '1'}${phoneCtrl.text.trim()}",
+            email: emailCtrl.text.trim(),
+            password: passwordCtrl.text.trim(),
+            address: addressCtrl.text.trim(),
+          ),
+        ),
       );
-    } finally {
-      setState(() => isLoading = false);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("❌ ${result['message']}")),
+      );
     }
+  } catch (e) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text("⚠️ Error: $e")),
+    );
+  } finally {
+    setState(() => isLoading = false);
   }
+}
 
   @override
   Widget build(BuildContext context) {
@@ -219,7 +283,7 @@ class _SignupScreenState extends State<SignupScreen> {
                             _field("Password", passwordCtrl,
                                 obscure: true, error: _errors['password']),
 
-                            // 🏠 Address Field with Autocomplete
+                            // 🏠 Address field (shortened suggestions)
                             Padding(
                               padding: const EdgeInsets.only(bottom: 10),
                               child: TypeAheadField<Map<String, dynamic>>(
@@ -238,7 +302,8 @@ class _SignupScreenState extends State<SignupScreen> {
                                         onPressed: useCurrentLocation,
                                       ),
                                       border: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(6),
+                                        borderRadius:
+                                            BorderRadius.circular(6),
                                       ),
                                       contentPadding:
                                           const EdgeInsets.symmetric(
@@ -246,36 +311,45 @@ class _SignupScreenState extends State<SignupScreen> {
                                     ),
                                   );
                                 },
+
+                                // ✅ Simplified address display
                                 itemBuilder: (context, suggestion) {
                                   final address = suggestion['address'] ?? {};
-                                  final sub = [
+                                  final parts = [
                                     address['road'],
-                                    address['suburb'],
                                     address['city'],
                                     address['state'],
-                                    address['country']
-                                  ].where((e) => e != null).join(", ");
+                                    address['postcode'],
+                                  ].where((e) =>
+                                      e != null &&
+                                      e.toString().trim().isNotEmpty).toList();
+
+                                  final shortAddress = parts.join(", ");
+
                                   return ListTile(
                                     title: Text(
-                                        suggestion['display_name'] ?? 'Unknown'),
-                                    subtitle: Text(sub),
+                                      shortAddress.isNotEmpty
+                                          ? shortAddress
+                                          : (suggestion['display_name'] ??
+                                              ''),
+                                    ),
                                   );
                                 },
                                 onSelected: (suggestion) {
-                                  final name =
-                                      suggestion['display_name']?.toString() ??
-                                          '';
-                                  final lat =
-                                      suggestion['lat']?.toString() ?? '';
-                                  final lon =
-                                      suggestion['lon']?.toString() ?? '';
-                                  setState(() {
-                                    addressCtrl.text = name;
-                                  });
-                                  print("📍 Selected: $name ($lat,$lon)");
+                                  final address = suggestion['address'] ?? {};
+                                  final parts = [
+                                    address['road'],
+                                    address['city'],
+                                    address['state'],
+                                    address['postcode'],
+                                  ].where((e) =>
+                                      e != null &&
+                                      e.toString().trim().isNotEmpty).toList();
+                                  addressCtrl.text = parts.join(", ");
                                 },
-                                emptyBuilder: (context) => const ListTile(
-                                    title: Text('No results found')),
+                                emptyBuilder: (context) =>
+                                    const ListTile(
+                                        title: Text('No results found')),
                               ),
                             ),
 
@@ -341,7 +415,7 @@ class _SignupScreenState extends State<SignupScreen> {
                       ),
                     ),
 
-                    // Continue button + login link
+                    // Continue + login
                     Padding(
                       padding: const EdgeInsets.fromLTRB(20, 0, 20, 100),
                       child: Column(
@@ -351,16 +425,19 @@ class _SignupScreenState extends State<SignupScreen> {
                             height: 48,
                             child: FilledButton(
                               style: FilledButton.styleFrom(
-                                backgroundColor: const Color(0xFF804692),
+                                backgroundColor:
+                                    const Color(0xFF804692),
                                 shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(8)),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
                               ),
                               onPressed: isLoading ? null : _signup,
                               child: isLoading
                                   ? const SizedBox(
                                       height: 22,
                                       width: 22,
-                                      child: CircularProgressIndicator(
+                                      child:
+                                          CircularProgressIndicator(
                                         color: Colors.white,
                                         strokeWidth: 2,
                                       ),
@@ -373,9 +450,11 @@ class _SignupScreenState extends State<SignupScreen> {
                             children: const [
                               Expanded(child: Divider(color: Colors.grey)),
                               Padding(
-                                padding: EdgeInsets.symmetric(horizontal: 8),
+                                padding:
+                                    EdgeInsets.symmetric(horizontal: 8),
                                 child: Text('or',
-                                    style: TextStyle(color: Colors.black54)),
+                                    style:
+                                        TextStyle(color: Colors.black54)),
                               ),
                               Expanded(child: Divider(color: Colors.grey)),
                             ],
@@ -387,23 +466,22 @@ class _SignupScreenState extends State<SignupScreen> {
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
-                                    builder: (context) =>
-                                        const LoginScreen(),
-                                  ),
+                                      builder: (_) => const LoginScreen()),
                                 );
                               },
                               child: const Text.rich(
                                 TextSpan(
-                                  text: 'If you already have an account, ',
-                                  style: TextStyle(color: Colors.black87),
+                                  text:
+                                      'If you already have an account, ',
+                                  style:
+                                      TextStyle(color: Colors.black87),
                                   children: [
                                     TextSpan(
                                       text: 'login.',
                                       style: TextStyle(
-                                        fontWeight: FontWeight.w700,
-                                        decoration:
-                                            TextDecoration.underline,
-                                      ),
+                                          fontWeight: FontWeight.w700,
+                                          decoration: TextDecoration
+                                              .underline),
                                     ),
                                   ],
                                 ),
@@ -451,9 +529,10 @@ class _SignupScreenState extends State<SignupScreen> {
         decoration: InputDecoration(
           hintText: hint,
           errorText: error,
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(6)),
-          contentPadding:
-              const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          border:
+              OutlineInputBorder(borderRadius: BorderRadius.circular(6)),
+          contentPadding: const EdgeInsets.symmetric(
+              horizontal: 14, vertical: 12),
         ),
       ),
     );
@@ -464,9 +543,7 @@ class _SignupScreenState extends State<SignupScreen> {
       context: context,
       showPhoneCode: true,
       onSelect: (Country country) {
-        setState(() {
-          selectedCountry = country;
-        });
+        setState(() => selectedCountry = country);
       },
     );
   }

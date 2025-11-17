@@ -1,8 +1,9 @@
 import 'dart:convert';
+import 'package:churppy_customer/screens/auth/forgot_password_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:country_picker/country_picker.dart'; // ✅ NEW
+import 'package:country_picker/country_picker.dart';
 
 import '../home_screen.dart';
 import 'signup_screen.dart';
@@ -129,6 +130,17 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  /// ✅ Forgot Password Handler
+  /// ✅ Forgot Password Handler
+void _handleForgotPassword() {
+  Navigator.push(
+    context,
+    MaterialPageRoute(
+      builder: (context) => const ForgotPasswordScreen(),
+    ),
+  );
+}
+
   @override
   Widget build(BuildContext context) {
     final w = MediaQuery.of(context).size.width;
@@ -216,7 +228,29 @@ class _LoginScreenState extends State<LoginScreen> {
                             _field("Email", emailCtrl, error: _errors['email']),
                             _field("Password", passCtrl,
                                 obscure: true, error: _errors['password']),
-                            const SizedBox(height: 24),
+                            
+                            // ✅ Forgot Password Section - Added Here
+                            const SizedBox(height: 5),
+                            Align(
+                              alignment: Alignment.centerRight,
+                              child: TextButton(
+                                onPressed: _handleForgotPassword,
+                                style: TextButton.styleFrom(
+                                  padding: EdgeInsets.zero,
+                                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                ),
+                                child: const Text(
+                                  'Forgot Password?',
+                                  style: TextStyle(
+                                    color: Color(0xFF804692),
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                    decoration: TextDecoration.underline,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 10),
 
                             SizedBox(
                               height: 48,

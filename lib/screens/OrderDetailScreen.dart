@@ -210,7 +210,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                                 style: TextStyle(
                                     fontWeight: FontWeight.bold,
                                     fontSize: 13,
-                                    color: Colors.purple),
+                                    color: Color(0xFF804692)),
                               ),
                               const SizedBox(height: 14),
 
@@ -265,7 +265,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                                     padding: const EdgeInsets.symmetric(
                                         horizontal: 12, vertical: 6),
                                     decoration: BoxDecoration(
-                                      color: Colors.purple,
+                                      color: Color(0xFF804692),
                                       borderRadius: BorderRadius.circular(6),
                                     ),
                                     child: Text(

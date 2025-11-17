@@ -480,14 +480,13 @@ class _HomeScreenState extends State<HomeScreen> {
 
                     final businesses = _isSearching ? filteredBusinesses : (snapshot.data ?? []);
 
-                    // ✅ FILTER LOGIC
+                    // ✅ UPDATED FILTER LOGIC - Only match by title
                     List<BusinessModel> displayList = businesses;
                     if (selectedFilter != 'All') {
                       String filter = selectedFilter.toLowerCase();
                       displayList = businesses.where((b) {
                         final title = b.title.toLowerCase();
-                        final desc  = b.description.toLowerCase();
-                        return title.contains(filter) || desc.contains(filter);
+                        return title.contains(filter);
                       }).toList();
                     }
 
@@ -497,7 +496,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         child: Text(
                           _isSearching
                               ? "No results found for '${_searchController.text}'"
-                              : "No businesses available",
+                              : "No businesses available in '$selectedFilter' category",
                           style: TextStyle(fontSize: fs(16), color: Colors.grey),
                           textAlign: TextAlign.center,
                         ),
@@ -560,7 +559,7 @@ class _HomeScreenState extends State<HomeScreen> {
             MaterialPageRoute(builder: (_) => const ChurppyAlertsScreen()),
           );
         },
-        backgroundColor: const Color(0xFF6C2FA0),
+        backgroundColor: const Color(0xFF804692),
         shape: const CircleBorder(),
         elevation: 6,
         child: Padding(
@@ -699,7 +698,7 @@ class _HomeScreenState extends State<HomeScreen> {
             },
             borderRadius: BorderRadius.circular(fs(20)),
             child: Chip(
-              backgroundColor: isSelected ? const Color(0xFF1CC019) : const Color(0xFFE0E0E0),
+              backgroundColor: isSelected ? const Color(0xFF8DC63F) : const Color(0xFFE0E0E0),
               label: Text(
                 label,
                 maxLines: 1,
@@ -992,7 +991,7 @@ class _AlertCard extends StatelessWidget {
                         ElevatedButton(
                           onPressed: onViewNow,
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF6DC24B),
+                            backgroundColor: const Color(0xFF8DC63F),
                             elevation: 0,
                             padding: EdgeInsets.symmetric(
                                 horizontal: fs(14), vertical: fs(8)),
@@ -1056,7 +1055,7 @@ class ChurppyNavbar extends StatelessWidget {
 
     return BottomAppBar(
       shape: const CircularNotchedRectangle(),
-      color: const Color(0xFF6C2FA0),
+      color: const Color(0xFF804692),
       notchMargin: 10.0,
       child: SizedBox(
         height: 65,

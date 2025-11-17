@@ -298,7 +298,7 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
       MaterialPageRoute(builder: (_) => const ChurppyAlertsScreen()),
     );
   },
-  backgroundColor: const Color(0xFF6C2FA0),
+  backgroundColor: const Color(0xFF804692),
   shape: const CircleBorder(),
   elevation: 6,
   child: Padding(

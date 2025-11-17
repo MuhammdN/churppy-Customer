@@ -1,4 +1,6 @@
 import 'package:churppy_customer/screens/firstpage.dart';
+import 'package:churppy_customer/screens/splash_screen.dart';
+import 'package:churppy_customer/screens/splash_screen1.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
 
@@ -23,7 +25,7 @@ class MyApp extends StatelessWidget {
         brightness: Brightness.light, // ✅ Dark theme disable
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
       ),
-      home: const SplashStep2BottomAligned(),
+      home: const SplashScreen1(),
     );
   }
 }

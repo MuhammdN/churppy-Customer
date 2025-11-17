@@ -9,7 +9,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
 import 'package:geocoding/geocoding.dart';
 
-
 class PaymentScreen extends StatefulWidget {
   final int itemId;
   final int merchantId;
@@ -87,7 +86,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
       if (placemarks.isNotEmpty) {
         Placemark place = placemarks.first;
         
-        // Complete address بنائیں
+        // Complete address 
         String address = '';
         if (place.street != null && place.street!.isNotEmpty) {
           address += place.street!;
@@ -245,19 +244,76 @@ class _PaymentScreenState extends State<PaymentScreen> {
     }
   }
 
+  // Check if error is due to user cancellation
+  bool _isUserCancellation(String error) {
+    final errorLower = error.toLowerCase();
+    return errorLower.contains('cancel') ||
+           errorLower.contains('dismiss') ||
+           errorLower.contains('abort') ||
+           errorLower.contains('back') ||
+           errorLower.contains('sheet');
+  }
+
+  // User-friendly cancellation message
+  void _showCancellationMessage() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Icon(Icons.info_outline, color: Colors.orange[100], size: 20),
+            SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                "Payment cancelled. You can try again anytime.",
+                style: TextStyle(color: Colors.white),
+              ),
+            ),
+          ],
+        ),
+        backgroundColor: Colors.orange[700],
+        duration: Duration(seconds: 3),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      ),
+    );
+  }
+
+  // Payment error message
+  void _showPaymentError(String error) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Icon(Icons.error_outline, color: Colors.red[100], size: 20),
+            SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                error.length > 100 ? 'Payment failed. Please try again.' : error,
+                style: TextStyle(color: Colors.white),
+              ),
+            ),
+          ],
+        ),
+        backgroundColor: Colors.red[700],
+        duration: Duration(seconds: 4),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      ),
+    );
+  }
+
   Future<void> _handleCardPayment(double grandTotal) async {
     setState(() => isLoading = true);
     final intentData = await _createPaymentIntent(grandTotal);
     if (intentData == null || intentData["client_secret"] == null) {
       setState(() => isLoading = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Payment Intent creation failed")),
-      );
+      _showPaymentError("Payment setup failed. Please try again.");
       return;
     }
 
     final clientSecret = intentData["client_secret"];
     final paymentIntentId = intentData["payment_intent_id"];
+    
     try {
       await Stripe.instance.initPaymentSheet(
         paymentSheetParameters: SetupPaymentSheetParameters(
@@ -266,10 +322,14 @@ class _PaymentScreenState extends State<PaymentScreen> {
           style: ThemeMode.light,
         ),
       );
+      
       await Stripe.instance.presentPaymentSheet();
+      
+      // Payment successful
       await _saveOrderToDatabase(
           chargeId: clientSecret, orderId: paymentIntentId);
       setState(() => isLoading = false);
+      
       if (mounted) {
         Navigator.pushReplacement(
           context,
@@ -278,8 +338,14 @@ class _PaymentScreenState extends State<PaymentScreen> {
       }
     } catch (e) {
       setState(() => isLoading = false);
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text("Payment failed: $e")));
+      
+      final errorMessage = e.toString();
+      
+      if (_isUserCancellation(errorMessage)) {
+        _showCancellationMessage();
+      } else {
+        _showPaymentError("Payment failed. Please try again.");
+      }
     }
   }
 
@@ -297,15 +363,23 @@ class _PaymentScreenState extends State<PaymentScreen> {
 
   void _processOrder(double total) {
     if (_userId == 0) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text("⚠️ User not logged in")));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("⚠️ User not logged in"),
+          backgroundColor: Colors.orange[700],
+        ),
+      );
       return;
     }
     if (nameCtrl.text.isEmpty ||
         phoneCtrl.text.isEmpty ||
         addressCtrl.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Please fill required fields (*)")));
+        SnackBar(
+          content: Text("Please fill required fields (*)"),
+          backgroundColor: Colors.orange[700],
+        ),
+      );
       return;
     }
     
@@ -429,7 +503,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(children: [
-            Icon(Icons.receipt_long, color: Color(0xFF1CC019), size: fs(18)),
+            Icon(Icons.receipt_long, color: Color(0xFF8DC63F), size: fs(18)),
             SizedBox(width: fs(8)),
             Text("Order Summary",
                 style: TextStyle(
@@ -472,11 +546,11 @@ class _PaymentScreenState extends State<PaymentScreen> {
               decoration: BoxDecoration(
                 color: Color(0xFFE8F5E8),
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Color(0xFF1CC019), width: 1),
+                border: Border.all(color: Color(0xFF8DC63F), width: 1),
               ),
               child: Row(
                 children: [
-                  Icon(Icons.local_offer, color: Color(0xFF1CC019), size: fs(16)),
+                  Icon(Icons.local_offer, color: Color(0xFF8DC63F), size: fs(16)),
                   SizedBox(width: fs(8)),
                   Expanded(
                     child: Column(
@@ -508,7 +582,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
                     style: TextStyle(
                       fontSize: fs(14),
                       fontWeight: FontWeight.bold,
-                      color: Color(0xFF1CC019),
+                      color: Color(0xFF8DC63F),
                     ),
                   ),
                 ],
@@ -571,7 +645,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
                   fontSize: fs(14),
                   color: isDiscount 
                       ? Colors.red 
-                      : isTotal ? Color(0xFF1CC019) : Colors.grey[700],
+                      : isTotal ? Color(0xFF8DC63F) : Colors.grey[700],
                   fontWeight: isTotal ? FontWeight.bold : FontWeight.normal)),
         ],
       ),
@@ -588,7 +662,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
-          Icon(Icons.person_pin_circle, color: Color(0xFF1CC019), size: fs(18)),
+          Icon(Icons.person_pin_circle, color: Color(0xFF8DC63F), size: fs(18)),
           SizedBox(width: fs(8)),
           Text("Delivery & Contact Info",
               style: TextStyle(
@@ -626,7 +700,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
-          Icon(Icons.payment, color: Color(0xFF1CC019), size: fs(18)),
+          Icon(Icons.payment, color: Color(0xFF8DC63F), size: fs(18)),
           SizedBox(width: fs(8)),
           Text("Payment Method",
               style: TextStyle(
@@ -650,7 +724,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
             DropdownMenuItem(
               value: "cash_on_delivery",
               child: Row(children: [
-                Icon(Icons.money, color: Colors.green),
+                Icon(Icons.money, color: Color(0xFF8DC63F)),
                 SizedBox(width: 8),
                 Text("Cash on Delivery")
               ]),
@@ -693,14 +767,14 @@ class _PaymentScreenState extends State<PaymentScreen> {
                   style: TextStyle(
                       fontSize: fs(22),
                       fontWeight: FontWeight.bold,
-                      color: Color(0xFF1CC019)))
+                      color: Color(0xFF8DC63F)))
             ])),
         SizedBox(
           width: fs(160),
           child: ElevatedButton(
             onPressed: isLoading ? null : () => _processOrder(grandTotal),
             style: ElevatedButton.styleFrom(
-                backgroundColor: Color(0xFF1CC019),
+                backgroundColor: Color(0xFF8DC63F),
                 padding: EdgeInsets.symmetric(vertical: fs(14)),
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12))),

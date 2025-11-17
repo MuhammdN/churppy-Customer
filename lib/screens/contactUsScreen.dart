@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:http/http.dart' as http; // ✅ added for backend call
+import 'package:http/http.dart' as http;
 
 class ContactUsScreen extends StatefulWidget {
   const ContactUsScreen({super.key});
@@ -19,17 +19,18 @@ class _ContactUsScreenState extends State<ContactUsScreen> {
   int? userId;
 
   // Controllers
-  final TextEditingController titleCtrl = TextEditingController();
+  final TextEditingController nameCtrl = TextEditingController();
   final TextEditingController emailCtrl = TextEditingController();
   final TextEditingController messageCtrl = TextEditingController();
   final TextEditingController contactNumberCtrl = TextEditingController();
 
   // Dropdown
   String? selectedCategory;
-  final List<String> categories = [
-    'Submit Feedback',
-    'Billing',
-    'Other'
+  int? selectedCategoryId;
+  final List<Map<String, dynamic>> categories = [
+    {'id': 1, 'name': 'Submit Feedback'},
+    {'id': 2, 'name': 'Billing'},
+    {'id': 3, 'name': 'Other'},
   ];
 
   // ✅ On init → fetch user id & autofill
@@ -39,7 +40,7 @@ class _ContactUsScreenState extends State<ContactUsScreen> {
     _loadUserId();
   }
 
-  // ✅ Load & print user id, autofill email/phone
+  // ✅ Load & print user id, autofill email/phone/name
   Future<void> _loadUserId() async {
     final prefs = await SharedPreferences.getInstance();
     final userString = prefs.getString("user");
@@ -49,13 +50,20 @@ class _ContactUsScreenState extends State<ContactUsScreen> {
 
       userId = userMap['id'];
       fetchedEmail = userMap['email'];
-      fetchedPhone = userMap['phone_number']; // with country code ✅
+      fetchedPhone = userMap['phone_number'];
+
+      // ✅ Combine first_name & last_name
+      String firstName = userMap['first_name'] ?? "";
+      String lastName = userMap['last_name'] ?? "";
+      String fetchedName = (firstName + " " + lastName).trim();
 
       print("✅ ContactUsScreen User ID: $userId");
       print("📧 Email: $fetchedEmail");
       print("📱 Phone: $fetchedPhone");
+      print("📝 Name: $fetchedName");
 
       // Auto-fill controllers
+      nameCtrl.text = fetchedName;
       emailCtrl.text = fetchedEmail ?? "";
       contactNumberCtrl.text = fetchedPhone ?? "";
 
@@ -65,10 +73,10 @@ class _ContactUsScreenState extends State<ContactUsScreen> {
     }
   }
 
-  // ✅ SUBMIT to backend (customer_save_contact.php)
+  // ✅ SUBMIT to backend
   Future<void> _submitContact() async {
     if (!_formKey.currentState!.validate()) return;
-    if (selectedCategory == null) {
+    if (selectedCategory == null || selectedCategoryId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text("❌ Please select a category"),
@@ -87,22 +95,25 @@ class _ContactUsScreenState extends State<ContactUsScreen> {
       );
 
       final payload = {
-        "title": titleCtrl.text.trim(),
+        "name": nameCtrl.text.trim(),
         "email": emailCtrl.text.trim(),
-        "invoice_email": null,
-        "info_email": null,
-        "contact_number": contactNumberCtrl.text.trim(),
-        "category": selectedCategory,
+        "phone": contactNumberCtrl.text.trim(),
         "message": messageCtrl.text.trim(),
-        "role_id": 2, // ✅ customer
-        "user_id": userId, // optional but useful
+        "cat_id": selectedCategoryId,
+        "user_id": userId,
+        "is_user": 1,
       };
+
+      print("📤 Sending Payload: $payload");
 
       final response = await http.post(
         url,
         headers: {"Content-Type": "application/json"},
         body: jsonEncode(payload),
       );
+
+      print("📥 Response Code: ${response.statusCode}");
+      print("📥 Response Body: ${response.body}");
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -111,15 +122,15 @@ class _ContactUsScreenState extends State<ContactUsScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text("✅ Message submitted successfully!"),
-              backgroundColor: Colors.green,
+              backgroundColor: Color(0xFF8DC63F),
               behavior: SnackBarBehavior.floating,
             ),
           );
 
-          // Clear only form fields (email/phone remain autofilled)
-          titleCtrl.clear();
+          // Clear message field and category only
           messageCtrl.clear();
           selectedCategory = null;
+          selectedCategoryId = null;
           setState(() {});
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -179,7 +190,7 @@ class _ContactUsScreenState extends State<ContactUsScreen> {
   }
 
   // --------------------------------------------------------------
-  // 🔽 All original UI below — unchanged
+  // 🔽 UI Components
   // --------------------------------------------------------------
 
   Widget _buildCategoryDropdown(double Function(double) fs, double Function(double) hp, bool isTablet) {
@@ -197,11 +208,11 @@ class _ContactUsScreenState extends State<ContactUsScreen> {
           border: InputBorder.none,
           contentPadding: EdgeInsets.symmetric(horizontal: fs(16), vertical: fs(isTablet ? 16 : 14)),
         ),
-        items: categories.map((String category) {
+        items: categories.map((Map<String, dynamic> category) {
           return DropdownMenuItem<String>(
-            value: category,
+            value: category['name'],
             child: Text(
-              category,
+              category['name'],
               style: TextStyle(fontSize: fs(14), color: Colors.black87),
             ),
           );
@@ -209,6 +220,10 @@ class _ContactUsScreenState extends State<ContactUsScreen> {
         onChanged: (String? newValue) {
           setState(() {
             selectedCategory = newValue;
+            selectedCategoryId = categories.firstWhere(
+              (c) => c['name'] == newValue,
+              orElse: () => {'id': null},
+            )['id'];
           });
         },
         validator: (value) => value == null ? 'Please select a category' : null,
@@ -223,11 +238,11 @@ class _ContactUsScreenState extends State<ContactUsScreen> {
         SizedBox(height: hp(1.5)),
 
         _buildCustomField(
-          label: "Title",
-          controller: titleCtrl,
-          icon: Icons.title,
+          label: "Name",
+          controller: nameCtrl,
+          icon: Icons.person,
           fs: fs,
-          validator: (v) => v!.trim().isEmpty ? "Title is required" : null,
+          validator: (v) => v!.trim().isEmpty ? "Name is required" : null,
         ),
         SizedBox(height: hp(1.5)),
 
@@ -299,6 +314,10 @@ class _ContactUsScreenState extends State<ContactUsScreen> {
       ),
     );
   }
+
+  // --------------------------------------------------------------
+  // 🔽 Layouts (Desktop / Mobile/Tablet)
+  // --------------------------------------------------------------
 
   Widget _buildDesktopLayout(double Function(double) fs, double Function(double) hp, double Function(double) wp) {
     return Row(
@@ -487,8 +506,7 @@ class _ContactUsScreenState extends State<ContactUsScreen> {
   Widget _buildContactMethods(double Function(double) fs, double Function(double) hp) {
     return Column(
       children: [
-        
-        _buildContactMethod(Icons.access_time, "Mon - Fri: 9:00 AM - 6:00 PM", fs),
+        _buildContactMethod(Icons.access_time, "Mon - Fri: 9:00 AM - 5:00 PM", fs),
       ],
     );
   }
@@ -549,7 +567,7 @@ class _ContactUsScreenState extends State<ContactUsScreen> {
               SizedBox(height: hp(3)),
             ],
 
-            if (isTablet) _buildMobileForm(fs, hp) else _buildMobileForm(fs, hp),
+            _buildMobileForm(fs, hp),
 
             SizedBox(height: hp(3)),
 

@@ -168,7 +168,7 @@ class _PaymentSuccessScreenState extends State<PaymentSuccessScreen> {
                         style: TextStyle(
                           fontSize: fs(18),
                           fontWeight: FontWeight.bold,
-                          color: Color(0xFF8BC34A),
+                          color: Color(0xFF8DC63F),
                         ),
                       ),
                       SizedBox(height: fs(8)),
@@ -196,7 +196,7 @@ class _PaymentSuccessScreenState extends State<PaymentSuccessScreen> {
                           );
                         },
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Color(0xFF8BC34A),
+                          backgroundColor: Color(0xFF8DC63F),
                           padding: EdgeInsets.symmetric(
                               horizontal: fs(34), vertical: fs(12)),
                           shape: RoundedRectangleBorder(

@@ -6,7 +6,7 @@ plugins {
 }
 
 android {
-    namespace = "com.example.churppy_customer"
+    namespace = "com.kathryn.churppyCustomer"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 

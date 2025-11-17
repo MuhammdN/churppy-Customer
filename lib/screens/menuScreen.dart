@@ -332,7 +332,7 @@ class _MenuScreenState extends State<MenuScreen> {
                           },
                           style: ElevatedButton.styleFrom(
                             backgroundColor: selected
-                                ? const Color(0xFF1CC019)
+                                ? const Color(0xFF8DC63F)
                                 : const Color(0xFFF3F3F3),
                             elevation: 0,
                             padding: const EdgeInsets.symmetric(
@@ -413,14 +413,14 @@ class _MenuScreenState extends State<MenuScreen> {
       MaterialPageRoute(builder: (_) => const ChurppyAlertsScreen()),
     );
   },
-  backgroundColor: const Color(0xFF6C2FA0),
+  backgroundColor: const Color(0xFF804692),
   shape: const CircleBorder(),
   elevation: 6,
   child: Padding(
     padding: const EdgeInsets.all(10), // adjust for centering
     child: Image.asset(
       'assets/images/alert1.png', // 👈 your image file path
-      color: Colors.white, // ensure it stays white even if PNG has color
+      color: Colors.white, 
       fit: BoxFit.contain,
     ),
   ),
@@ -572,7 +572,7 @@ class ChurppyNavbar extends StatelessWidget {
 
     return BottomAppBar(
       shape: const CircularNotchedRectangle(),
-      color: const Color(0xFF6C2FA0),
+      color: const Color(0xFF804692),
       notchMargin: 8.0,
       child: SizedBox(
         height: 65,

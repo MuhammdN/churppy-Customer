@@ -299,7 +299,7 @@ class _CustomizeProductScreenState extends State<CustomizeProductScreen> {
                               Slider(
                                 value: spiceLevel,
                                 onChanged: (value) => setState(() => spiceLevel = value),
-                                activeColor: Colors.green,
+                                activeColor: Color(0xFF8DC63F),
                                 inactiveColor: Colors.grey.shade300,
                               ),
                               Padding(
@@ -383,7 +383,7 @@ class _CustomizeProductScreenState extends State<CustomizeProductScreen> {
 );
                           },
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF1CC019),
+                            backgroundColor: const Color(0xFF8DC63F),
                             padding: EdgeInsets.symmetric(horizontal: fs(24), vertical: fs(12)),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                           ),
@@ -407,7 +407,7 @@ class _CustomizeProductScreenState extends State<CustomizeProductScreen> {
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.all(6),
-        decoration: const BoxDecoration(color: Colors.green, shape: BoxShape.circle),
+        decoration: const BoxDecoration(color:Color(0xFF8DC63F), shape: BoxShape.circle),
         child: Icon(icon, size: 20, color: Colors.white),
       ),
     );
