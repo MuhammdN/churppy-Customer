@@ -221,7 +221,7 @@ class Slider2 extends StatelessWidget {
                               _buildButton(
                                 text:
                                     "Foodtrucks | Mobile | Vendors (Business App)",
-                                color: Colors.grey,
+                                color: Colors.pink,
                                 onTap: () =>
                                     debugPrint("Business App (Vendor) pressed"),
                               ),
@@ -300,7 +300,7 @@ Widget _buildButton({
   required VoidCallback onTap,
 }) {
   return Padding(
-    padding: const EdgeInsets.symmetric(horizontal: 30),
+    padding: const EdgeInsets.symmetric(horizontal: 40),
     child: InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(12),
@@ -324,7 +324,7 @@ Widget _buildButton({
             textAlign: TextAlign.center,
             style: GoogleFonts.inter(
               color: Colors.white,
-              fontSize: 15,
+              fontSize: 14,
               fontWeight: FontWeight.w600,
               letterSpacing: 0.5,
             ),

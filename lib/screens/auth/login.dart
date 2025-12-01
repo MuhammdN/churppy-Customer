@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:churppy_customer/screens/auth/forgot_password_screen.dart';
+import 'package:churppy_customer/screens/google_login_service.dart.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -22,12 +23,12 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Country? selectedCountry;
   bool isLoading = false;
+  bool socialLoading = false;
   final Map<String, String?> _errors = {};
 
   @override
   void initState() {
     super.initState();
-    // Default country = US 🇺🇸
     selectedCountry = Country(
       phoneCode: '1',
       countryCode: 'US',
@@ -42,7 +43,6 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  /// ✅ Validate Inputs
   bool _validateInputs() {
     _errors.clear();
 
@@ -69,20 +69,73 @@ class _LoginScreenState extends State<LoginScreen> {
     return _errors.isEmpty;
   }
 
-  /// ✅ Login API Call
+  // ------------------------------------------------
+  // 🔥 SOCIAL LOGIN API CALL
+  // ------------------------------------------------
+  Future<void> _socialLogin(Map<String, dynamic> data) async {
+    setState(() => socialLoading = true);
+
+    final url = Uri.parse(
+        "https://churppy.eurekawebsolutions.com/api/social_login.php");
+
+    try {
+      final response = await http.post(url, body: data);
+      print("🌐 SOCIAL LOGIN BODY: $data");
+      print("🌐 RESPONSE: ${response.body}");
+
+      final result = json.decode(response.body);
+
+      if (response.statusCode == 200 && result['status'] == 'success') {
+        final userData = result['data'] ?? {};
+
+        if (userData['role_id'].toString() == "2") {
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString("user", jsonEncode(userData));
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("✅ Login Successful!")),
+          );
+
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => const HomeScreen()),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+                content: Text("❌ You are not allowed to login.")),
+          );
+        }
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(result['message'] ?? "Login failed")),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("⚠️ Social Login Error: $e")),
+      );
+    } finally {
+      setState(() => socialLoading = false);
+    }
+  }
+
+  // ------------------------------------------------
+  // 🔥 NORMAL LOGIN
+  // ------------------------------------------------
   Future<void> _login() async {
     if (!_validateInputs()) return;
 
     setState(() => isLoading = true);
 
-    final url = Uri.parse("https://churppy.eurekawebsolutions.com/api/login.php");
+    final url =
+        Uri.parse("https://churppy.eurekawebsolutions.com/api/login.php");
 
     final requestBody = {
       if (phoneCtrl.text.trim().isNotEmpty)
         "phone_number":
             "+${selectedCountry?.phoneCode ?? '1'}${phoneCtrl.text.trim()}",
-      if (phoneCtrl.text.trim().isEmpty)
-        "email": emailCtrl.text.trim(),
+      if (phoneCtrl.text.trim().isEmpty) "email": emailCtrl.text.trim(),
       "password": passCtrl.text.trim(),
     };
 
@@ -130,17 +183,18 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  /// ✅ Forgot Password Handler
-  /// ✅ Forgot Password Handler
-void _handleForgotPassword() {
-  Navigator.push(
-    context,
-    MaterialPageRoute(
-      builder: (context) => const ForgotPasswordScreen(),
-    ),
-  );
-}
+  void _handleForgotPassword() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const ForgotPasswordScreen(),
+      ),
+    );
+  }
 
+  // ------------------------------------------------
+  // 🔥 BUILD UI
+  // ------------------------------------------------
   @override
   Widget build(BuildContext context) {
     final w = MediaQuery.of(context).size.width;
@@ -183,24 +237,29 @@ void _handleForgotPassword() {
                             const SizedBox(height: 8),
                             Row(
                               children: [
-                                // ✅ Dynamic country picker
                                 InkWell(
                                   onTap: () => _showCountryPicker(context),
                                   child: Container(
                                     padding: const EdgeInsets.symmetric(
                                         horizontal: 10, vertical: 12),
                                     decoration: BoxDecoration(
-                                      border: Border.all(color: Color(0xFFBDBDBD)),
+                                      border: Border.all(
+                                          color: Color(0xFFBDBDBD)),
                                       borderRadius: BorderRadius.circular(6),
                                     ),
                                     child: Row(
                                       children: [
-                                        Text(selectedCountry?.flagEmoji ?? '🌎',
-                                            style: const TextStyle(fontSize: 20)),
+                                        Text(
+                                            selectedCountry?.flagEmoji ?? '🌎',
+                                            style:
+                                                const TextStyle(fontSize: 20)),
                                         const SizedBox(width: 6),
-                                        Text('+${selectedCountry?.phoneCode ?? ''}',
-                                            style: const TextStyle(fontSize: 14)),
-                                        const Icon(Icons.arrow_drop_down, size: 20),
+                                        Text(
+                                            '+${selectedCountry?.phoneCode ?? ''}',
+                                            style:
+                                                const TextStyle(fontSize: 14)),
+                                        const Icon(Icons.arrow_drop_down,
+                                            size: 20),
                                       ],
                                     ),
                                   ),
@@ -214,10 +273,12 @@ void _handleForgotPassword() {
                                       hintText: 'Phone Number',
                                       errorText: _errors['phone'],
                                       border: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(6),
+                                        borderRadius:
+                                            BorderRadius.circular(6),
                                       ),
-                                      contentPadding: const EdgeInsets.symmetric(
-                                          horizontal: 14, vertical: 12),
+                                      contentPadding:
+                                          const EdgeInsets.symmetric(
+                                              horizontal: 14, vertical: 12),
                                     ),
                                   ),
                                 ),
@@ -225,11 +286,11 @@ void _handleForgotPassword() {
                             ),
                             const SizedBox(height: 16),
 
-                            _field("Email", emailCtrl, error: _errors['email']),
+                            _field("Email", emailCtrl,
+                                error: _errors['email']),
                             _field("Password", passCtrl,
                                 obscure: true, error: _errors['password']),
-                            
-                            // ✅ Forgot Password Section - Added Here
+
                             const SizedBox(height: 5),
                             Align(
                               alignment: Alignment.centerRight,
@@ -237,7 +298,8 @@ void _handleForgotPassword() {
                                 onPressed: _handleForgotPassword,
                                 style: TextButton.styleFrom(
                                   padding: EdgeInsets.zero,
-                                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                  tapTargetSize:
+                                      MaterialTapTargetSize.shrinkWrap,
                                 ),
                                 child: const Text(
                                   'Forgot Password?',
@@ -250,15 +312,121 @@ void _handleForgotPassword() {
                                 ),
                               ),
                             ),
+
                             const SizedBox(height: 10),
+
+                            // ------------------ SOCIAL LOGIN BUTTONS -------------------
+                            Column(
+                              children: [
+                                // GOOGLE BUTTON
+                                SizedBox(
+                                  height: 48,
+                                  width: double.infinity,
+                                  child: OutlinedButton(
+                                    style: OutlinedButton.styleFrom(
+                                      side: const BorderSide(
+                                          color: Color(0xFF804692),
+                                          width: 1.4),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius:
+                                            BorderRadius.circular(8),
+                                      ),
+                                      foregroundColor: Colors.black87,
+                                    ),
+                                    onPressed: socialLoading
+                                        ? null
+                                        : () async {
+                                            final data =
+                                                await SocialAuthService
+                                                    .loginWithGoogle();
+
+                                            if (data != null) {
+                                              await _socialLogin(data);
+                                            }
+                                          },
+                                    child: Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        Image.asset(
+                                          "assets/images/google.png",
+                                          height: 22,
+                                          width: 22,
+                                        ),
+                                        const SizedBox(width: 10),
+                                        const Text(
+                                          "Continue with Google",
+                                          style: TextStyle(
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.w600),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+
+                                const SizedBox(height: 12),
+
+                                // APPLE BUTTON
+                                SizedBox(
+                                  height: 48,
+                                  width: double.infinity,
+                                  child: OutlinedButton(
+                                    style: OutlinedButton.styleFrom(
+                                      side: const BorderSide(
+                                          color: Color(0xFF804692),
+                                          width: 1.4),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius:
+                                            BorderRadius.circular(8),
+                                      ),
+                                      foregroundColor: Colors.black87,
+                                    ),
+                                    onPressed: socialLoading
+                                        ? null
+                                        : () async {
+                                            final data =
+                                                await SocialAuthService
+                                                    .loginWithApple();
+
+                                            if (data != null) {
+                                              await _socialLogin(data);
+                                            }
+                                          },
+                                    child: Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        Image.asset(
+                                          "assets/images/apple.png",
+                                          height: 39,
+                                          width: 39,
+                                        ),
+                                        const SizedBox(width: 10),
+                                        const Text(
+                                          "Continue with Apple",
+                                          style: TextStyle(
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.w600),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+
+                                const SizedBox(height: 30),
+                              ],
+                            ),
 
                             SizedBox(
                               height: 48,
                               child: FilledButton(
                                 style: FilledButton.styleFrom(
-                                  backgroundColor: const Color(0xFF804692),
+                                  backgroundColor:
+                                      const Color(0xFF804692),
                                   shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(8)),
+                                      borderRadius:
+                                          BorderRadius.circular(8)),
                                 ),
                                 onPressed: isLoading ? null : _login,
                                 child: isLoading
@@ -273,6 +441,7 @@ void _handleForgotPassword() {
                                     : const Text('Continue'),
                               ),
                             ),
+
                             const SizedBox(height: 14),
 
                             Center(
@@ -294,7 +463,8 @@ void _handleForgotPassword() {
                                         text: 'Sign up.',
                                         style: TextStyle(
                                           fontWeight: FontWeight.w700,
-                                          decoration: TextDecoration.underline,
+                                          decoration:
+                                              TextDecoration.underline,
                                         ),
                                       ),
                                     ],
@@ -303,6 +473,7 @@ void _handleForgotPassword() {
                                 ),
                               ),
                             ),
+
                             const SizedBox(height: 24),
 
                             const Padding(
@@ -353,7 +524,7 @@ void _handleForgotPassword() {
   void _showCountryPicker(BuildContext context) {
     showCountryPicker(
       context: context,
-      showPhoneCode: true, // 📱 shows +code
+      showPhoneCode: true,
       onSelect: (Country country) {
         setState(() {
           selectedCountry = country;

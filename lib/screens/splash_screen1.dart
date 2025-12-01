@@ -92,7 +92,7 @@ class _SplashScreen1State extends State<SplashScreen1>
 
   Future<void> _playDing() async {
     try {
-      await _audioPlayer.play(AssetSource('audio/ding.mp3'));
+      await _audioPlayer.play(AssetSource('audio/1.wav'));
     } catch (e) {
       debugPrint("⚠️ Audio error: $e");
     }
@@ -233,7 +233,7 @@ class _SplashScreen1State extends State<SplashScreen1>
               alignment: const Alignment(0, -0.15),
               child: Image.asset(
                 'assets/images/logo2.png',
-                width: screenW * 0.9,
+                width: screenW * 0.8,
                 fit: BoxFit.contain,
               ),
             ),
@@ -247,7 +247,7 @@ class _SplashScreen1State extends State<SplashScreen1>
                 final opacity =
                     Curves.easeInOut.transform(_buttonController.value);
                 return Positioned(
-                  bottom: screenH * 0.1 + slideY,
+                  bottom: screenH * 0.12 + slideY,
                   left: 0,
                   right: 0,
                   child: Opacity(
@@ -283,7 +283,7 @@ class _SplashScreen1State extends State<SplashScreen1>
                         _buildButton(
                           text:
                               "Foodtrucks | Mobile | Vendors (Business App)",
-                          color: Colors.grey,
+                          color: Colors.pink,
                           onTap: () =>
                               debugPrint("Business App (Vendor) pressed"),
                         ),
@@ -321,7 +321,7 @@ class _SplashScreen1State extends State<SplashScreen1>
                               "Why you’ll love CHURPPY!",
                               textAlign: TextAlign.center,
                               style: GoogleFonts.lemon(
-                                fontSize: 22.25,
+                                fontSize: 19.25,
                                 fontWeight: FontWeight.w400,
                                 fontStyle: FontStyle.normal,
                                 color: const Color(0xFFFF9633),
@@ -340,11 +340,11 @@ class _SplashScreen1State extends State<SplashScreen1>
 
             /// 📜 Footer Text
             Positioned(
-              bottom: 25,
+              bottom: 29,
               left: 0,
               right: 0,
               child: Text(
-                "Churppy\nTrademark and Patent pending",
+                "Churppy\nTrademark and Patent Pending",
                 textAlign: TextAlign.center,
                 style: GoogleFonts.inter(
                   color: Colors.black,
@@ -366,7 +366,7 @@ class _SplashScreen1State extends State<SplashScreen1>
     required VoidCallback onTap,
   }) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 50),
+      padding: const EdgeInsets.symmetric(horizontal: 70),
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(12),
@@ -390,7 +390,7 @@ class _SplashScreen1State extends State<SplashScreen1>
               textAlign: TextAlign.center,
               style: GoogleFonts.inter(
                 color: Colors.white,
-                fontSize: 16,
+                fontSize: 14,
                 fontWeight: FontWeight.w600,
                 letterSpacing: 0.5,
               ),

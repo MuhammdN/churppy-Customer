@@ -1,10 +1,12 @@
+import 'package:churppy_customer/screens/auth/social_login_screen.dart';
 import 'package:churppy_customer/screens/firstpage.dart';
 import 'package:churppy_customer/screens/splash_screen.dart';
 import 'package:churppy_customer/screens/splash_screen1.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
 
-void main() {
+Future<void> main() async {
    WidgetsFlutterBinding.ensureInitialized();
 
   
@@ -18,14 +20,14 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      debugShowCheckedModeBanner: false, // ✅ Debug banner हट गया
+      debugShowCheckedModeBanner: false, 
       title: 'Churppy',
-      themeMode: ThemeMode.light, // ✅ सिर्फ Light Mode enforce किया
+      themeMode: ThemeMode.light, 
       theme: ThemeData(
-        brightness: Brightness.light, // ✅ Dark theme disable
+        brightness: Brightness.light, 
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
       ),
-      home: const SplashScreen1(),
+      home: const SplashScreen1 ()
     );
   }
 }
