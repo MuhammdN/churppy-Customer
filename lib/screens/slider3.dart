@@ -70,7 +70,7 @@ class Slider3 extends StatelessWidget {
                                   'A consumer-driven crowd sourcing platform offering Smart Delivery',
                                   textAlign: TextAlign.center,
                                   style: GoogleFonts.poppins(
-                                    fontSize: fs(14),
+                                    fontSize: fs(13),
                                     fontWeight: FontWeight.w500,
                                     color: Colors.black87,
                                     height: 1.4,
@@ -83,7 +83,7 @@ class Slider3 extends StatelessWidget {
                                 child: Text(
                                   'Why you’ll love CHURPPY!',
                                   style: GoogleFonts.lemon(
-                                    fontSize: fs(17),
+                                    fontSize: fs(15),
                                     fontWeight: FontWeight.w800,
                                     color: orange,
                                   ),
@@ -95,7 +95,7 @@ class Slider3 extends StatelessWidget {
                               Text(
                                 'Churppy Chain',
                                 style: GoogleFonts.lemon(
-                                  fontSize: fs(16),
+                                  fontSize: fs(14),
                                   fontWeight: FontWeight.w700,
                                   color: Colors.black,
                                 ),
@@ -278,7 +278,7 @@ Widget _buildBullet(double Function(double) fs, String text) {
         child: Text(
           text,
           style: GoogleFonts.poppins(
-            fontSize: fs(14.5),
+            fontSize: fs(13),
             fontWeight: FontWeight.w500,
           ),
         ),
@@ -317,7 +317,7 @@ Widget _buildButton({
             textAlign: TextAlign.center,
             style: GoogleFonts.inter(
               color: Colors.white,
-              fontSize: 14,
+              fontSize: 12,
               fontWeight: FontWeight.w600,
               letterSpacing: 0.5,
             ),

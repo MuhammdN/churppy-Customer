@@ -1,7 +1,7 @@
+import 'dart:async';
 import 'package:churppy_customer/screens/auth/login.dart';
 import 'package:churppy_customer/screens/auth/signup_screen.dart';
 import 'package:churppy_customer/screens/churppy_difference.dart';
-import 'package:churppy_customer/screens/slider2.dart'; // 👈 make sure this file exists
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -15,39 +15,42 @@ class Slider1 extends StatelessWidget {
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
-        child: LayoutBuilder(
-          builder: (context, c) {
-            final w = c.maxWidth;
-            final scale = (w / 390).clamp(0.85, 1.25);
-            double fs(double x) => x * scale;
+        child: Stack(
+          children: [
+            /// MAIN CONTENT
+            LayoutBuilder(
+              builder: (context, c) {
+                final w = c.maxWidth;
+                final scale = (w / 390).clamp(0.85, 1.25);
+                double fs(double x) => x * scale;
 
-            const cardBg = Color(0xFFF1FBE2);
-            const orange = Color(0xFFFF9633);
+                const cardBg = Color(0xFFF1FBE2);
+                const orange = Color(0xFFFF9633);
 
-            return Stack(
-              children: [
-                SingleChildScrollView(
+                return SingleChildScrollView(
                   physics: const BouncingScrollPhysics(),
                   child: Padding(
-                    padding: EdgeInsets.symmetric(horizontal: fs(20), vertical: fs(10)),
+                    padding: EdgeInsets.symmetric(
+                      horizontal: fs(20),
+                      vertical: fs(10),
+                    ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        // ✅ Logo
-                        Image.asset(
-                          'assets/images/logo.png',
-                          width: fs(120),
-                        ),
+                        Image.asset('assets/images/logo.png', width: fs(120)),
                         SizedBox(height: fs(8)),
 
-                        // ✅ Main yellow card
+                        // 🟡 MAIN CARD
                         Container(
                           width: double.infinity,
                           decoration: BoxDecoration(
                             color: cardBg,
                             borderRadius: BorderRadius.circular(fs(25)),
                           ),
-                          padding: EdgeInsets.symmetric(horizontal: fs(20), vertical: fs(25)),
+                          padding: EdgeInsets.symmetric(
+                            horizontal: fs(20),
+                            vertical: fs(25),
+                          ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.center,
                             children: [
@@ -56,7 +59,6 @@ class Slider1 extends StatelessWidget {
                                 style: GoogleFonts.lemon(
                                   fontSize: fs(22),
                                   fontWeight: FontWeight.w900,
-                                  color: Colors.black,
                                   fontStyle: FontStyle.italic,
                                 ),
                               ),
@@ -68,7 +70,6 @@ class Slider1 extends StatelessWidget {
                                 style: GoogleFonts.poppins(
                                   fontSize: fs(14),
                                   fontWeight: FontWeight.w500,
-                                  color: Colors.black87,
                                   height: 1.4,
                                 ),
                               ),
@@ -77,94 +78,27 @@ class Slider1 extends StatelessWidget {
                               Text(
                                 'Why you’ll love CHURPPY!',
                                 style: GoogleFonts.lemon(
-                                  fontSize: fs(17),
+                                  fontSize: fs(16),
                                   fontWeight: FontWeight.w800,
                                   color: orange,
                                 ),
                               ),
-                              SizedBox(height: fs(15)),
+                              SizedBox(height: fs(5)),
 
-                              Text(
-                                'Find great food + services faster',
-                                style: GoogleFonts.lemon(
-                                  fontSize: fs(16),
-                                  fontWeight: FontWeight.w700,
-                                  color: Colors.black,
-                                ),
-                              ),
-                              SizedBox(height: fs(10)),
+                              /// 🔥 CONTENT + IMAGE + INFO AUTO SLIDER
+                              _AutoContentAndInfoSlider(fs: fs),
 
-                              // ✅ Bullet points
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  _buildBullet(fs, 'Locate your favorite Foodtruck, mobile service or business'),
-                                  SizedBox(height: fs(6)),
-                                  _buildBullet(fs, 'Map Locator'),
-                                  SizedBox(height: fs(6)),
-                                  _buildBullet(fs, 'Instantly know When and Where they are'),
-                                ],
-                              ),
-                              SizedBox(height: fs(18)),
+                              SizedBox(height: fs(3)),
 
-                              // ✅ Info Card
-                              Container(
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(fs(12)),
-                                  border: Border.all(color: Colors.black26, width: 1.2),
-                                  color: Colors.white,
-                                ),
-                                padding: EdgeInsets.all(fs(12)),
-                                child: Row(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Image.asset(
-                                      'assets/images/tees_tasty_logo.png',
-                                      width: fs(80),
-                                      height: fs(80),
-                                      fit: BoxFit.contain,
-                                    ),
-                                    SizedBox(width: fs(10)),
-                                    Expanded(
-                                      child: RichText(
-                                        text: TextSpan(
-                                          style: GoogleFonts.poppins(
-                                            fontSize: fs(11.5),
-                                            color: Colors.black,
-                                            height: 1.35,
-                                          ),
-                                          children: [
-                                            const TextSpan(
-                                              text:
-                                                  "Tee’s Tasty Kitchen will be located at 33 Churppy Rd, Churppy, 33333 on October 9th from 11am to 6pm. Look Forward to Seeing You! ",
-                                            ),
-                                            TextSpan(
-                                              text: "1hr 22mins left",
-                                              style: TextStyle(
-                                                color: Colors.redAccent,
-                                                fontWeight: FontWeight.w600,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-
-                              SizedBox(height: fs(30)),
-
-                              // ✅ Three Orange Dashes
                               Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: List.generate(
                                   3,
-                                  (i) => Padding(
+                                  (_) => Padding(
                                     padding: EdgeInsets.symmetric(horizontal: fs(15)),
                                     child: Container(
                                       width: fs(60),
-                                      height: fs(2.0),
+                                      height: fs(2),
                                       decoration: BoxDecoration(
                                         color: orange,
                                         borderRadius: BorderRadius.circular(5),
@@ -176,14 +110,15 @@ class Slider1 extends StatelessWidget {
 
                               SizedBox(height: fs(30)),
 
-                              // ✅ Buttons Section inside card
                               _buildButton(
                                 text: "Sign Up",
                                 color: Colors.purple,
                                 onTap: () {
                                   Navigator.push(
                                     context,
-                                    MaterialPageRoute(builder: (context) => const SignupScreen()),
+                                    MaterialPageRoute(
+                                      builder: (_) => const SignupScreen(),
+                                    ),
                                   );
                                 },
                               ),
@@ -194,7 +129,9 @@ class Slider1 extends StatelessWidget {
                                 onTap: () {
                                   Navigator.push(
                                     context,
-                                    MaterialPageRoute(builder: (context) => const LoginScreen()),
+                                    MaterialPageRoute(
+                                      builder: (_) => const LoginScreen(),
+                                    ),
                                   );
                                 },
                               ),
@@ -202,81 +139,236 @@ class Slider1 extends StatelessWidget {
                               _buildButton(
                                 text: "Foodtrucks | Mobile | Vendors (Business App)",
                                 color: Colors.pink,
-                                onTap: () => debugPrint("Business App (Vendor) pressed"),
+                                onTap: () {},
                               ),
                               const SizedBox(height: 12),
                               _buildButton(
                                 text: "Explore More → The Churppy Difference",
                                 color: Colors.lightBlue,
-                                onTap: (){ Navigator.push(
-                            context,
-                            MaterialPageRoute(builder: (context) => ChurppyDifference()), // 👈 Go Next
-                          );}
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => ChurppyDifference(),
+                                    ),
+                                  );
+                                },
                               ),
                             ],
                           ),
                         ),
-                        SizedBox(height: screenH * 0.09),
+
+                        SizedBox(height: screenH * 0.12), // space for bottom arrow
                       ],
                     ),
                   ),
-                ),
+                );
+              },
+            ),
 
-                // ✅ Bottom Navigation Arrows
-                Positioned(
-                  bottom: 25,
-                  left: 25,
-                  right: 25,
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      _navArrow(
-                        icon: Icons.arrow_back_ios_new_rounded,
-                        onTap: () {
-                          Navigator.pop(context); // 👈 Go Back
-                        },
-                      ),
-                      _navArrow(
-                        icon: Icons.arrow_forward_ios_rounded,
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(builder: (context) => const Slider2()), // 👈 Go Next
-                          );
-                        },
-                      ),
-                    ],
+            /// 🔙 BACK ARROW (BOTTOM LEFT)
+            Positioned(
+              bottom: 20,
+              left: 20,
+              child: InkWell(
+                onTap: () => Navigator.pop(context), // ✅ back works
+                borderRadius: BorderRadius.circular(50),
+                child: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: const BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Colors.black12,
+                  ),
+                  child: const Icon(
+                    Icons.arrow_back_ios_new_rounded,
+                    size: 22,
+                    color: Colors.black87,
                   ),
                 ),
-              ],
-            );
-          },
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
 }
 
-// ✅ Helper Widgets
+/// 🔥 AUTO CONTENT + IMAGE + INFO SLIDER
+/// ✔ PRESS & HOLD = PAUSE
+/// ✔ RELEASE = RESUME
+class _AutoContentAndInfoSlider extends StatefulWidget {
+  final double Function(double) fs;
+  const _AutoContentAndInfoSlider({required this.fs});
 
-Widget _buildBullet(double Function(double) fs, String text) {
-  return Row(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      const Text("• "),
-      Expanded(
-        child: Text(
-          text,
-          style: GoogleFonts.poppins(
-            fontSize: fs(14.5),
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-      ),
-    ],
-  );
+  @override
+  State<_AutoContentAndInfoSlider> createState() =>
+      _AutoContentAndInfoSliderState();
 }
 
+class _AutoContentAndInfoSliderState
+    extends State<_AutoContentAndInfoSlider> {
+  final PageController _controller = PageController();
+  Timer? _timer;
+  int _index = 0;
+  bool _paused = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _timer = Timer.periodic(const Duration(seconds: 8), (_) {
+      if (_paused) return;
+      _index = (_index + 1) % 3;
+      _controller.animateToPage(
+        _index,
+        duration: const Duration(milliseconds: 350),
+        curve: Curves.easeInOut,
+      );
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final fs = widget.fs;
+
+    return GestureDetector(
+      onTapDown: (_) => setState(() => _paused = true),
+      onTapUp: (_) => setState(() => _paused = false),
+      onTapCancel: () => setState(() => _paused = false),
+      child: SizedBox(
+        height: fs(300),
+        child: PageView(
+          controller: _controller,
+          physics: const NeverScrollableScrollPhysics(),
+          children: [
+            _slide(
+              fs,
+              title: 'Find great food + services faster',
+              bullets: [
+                'Locate your favorite Foodtruck, mobile service or business',
+                'Map Locator',
+                'Instantly know When and Where they are',
+              ],
+              info:
+                  "Tee’s Tasty Kitchen will be located at 33 Churppy Rd, Churppy, 33333 on October 9th from 11am to 6pm. Look Forward to Seeing You! ",
+              time: "1hr 22mins left",
+            ),
+            _slide(
+              fs,
+              title: 'Know When+ Where',
+              bullets: [
+                'Receive Instant Churppy Alerts',
+                'Get Real-time Offers',
+                'Find Last Minute Deals',
+              ],
+              info:
+                  "We Cooked Too Much!\nStop By Tee’s Tasty Kitchen, 101\nChurppy Corner,33333 by 9pm tonight and receive 25% OFF!!  ",
+              time: "1hr 22mins left",
+            ),
+            _slide(
+              fs,
+              title: 'Churppy Chain',
+              bullets: [
+                'Allows vendors to Bundle Individual Orders together When they are In Your Area',
+                'Stops back and forth to same office, dorm, etc.',
+                'Saves Gas + Time',
+                'Creates a Buzz',
+              ],
+              info:
+                  "Someone in your area just ordered from Tee’s Tasty Kitchen, 101 Churppy College Court. Help Us Bundle Orders By Placing Your Own Order NOW! ",
+              time: "Only 8 minutes left",
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _slide(
+    double Function(double) fs, {
+    required String title,
+    required List<String> bullets,
+    required String info,
+    required String time,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: GoogleFonts.lemon(
+            fontSize: fs(15),
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        SizedBox(height: fs(10)),
+        ...bullets.map(
+          (b) => Padding(
+            padding: EdgeInsets.only(bottom: fs(6)),
+            child: Text(
+              "• $b",
+              style: GoogleFonts.poppins(
+                fontSize: fs(12),
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        ),
+        SizedBox(height: fs(18)),
+        Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(fs(12)),
+            border: Border.all(color: Colors.black26),
+            color: Colors.white,
+          ),
+          padding: EdgeInsets.all(fs(12)),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Image.asset(
+                'assets/images/tees_tasty_logo.png',
+                width: fs(80),
+                height: fs(80),
+                fit: BoxFit.contain,
+              ),
+              SizedBox(width: fs(10)),
+              Expanded(
+                child: RichText(
+                  text: TextSpan(
+                    style: GoogleFonts.poppins(
+                      fontSize: fs(11.5),
+                      color: Colors.black,
+                      height: 1.35,
+                    ),
+                    children: [
+                      TextSpan(text: info),
+                      TextSpan(
+                        text: time,
+                        style: const TextStyle(
+                          color: Colors.redAccent,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// BUTTON (UNCHANGED)
 Widget _buildButton({
   required String text,
   required Color color,
@@ -287,19 +379,11 @@ Widget _buildButton({
     child: InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(12),
-      splashColor: Colors.white.withOpacity(0.2),
       child: Container(
         height: 50,
         decoration: BoxDecoration(
           color: color,
           borderRadius: BorderRadius.circular(12),
-          boxShadow: [
-            BoxShadow(
-              color: color.withOpacity(0.25),
-              blurRadius: 8,
-              offset: const Offset(0, 4),
-            ),
-          ],
         ),
         child: Center(
           child: Text(
@@ -307,31 +391,11 @@ Widget _buildButton({
             textAlign: TextAlign.center,
             style: GoogleFonts.inter(
               color: Colors.white,
-              fontSize: 14,
+              fontSize: 12,
               fontWeight: FontWeight.w600,
-              letterSpacing: 0.5,
             ),
           ),
         ),
-      ),
-    ),
-  );
-}
-
-Widget _navArrow({required IconData icon, required VoidCallback onTap}) {
-  return InkWell(
-    onTap: onTap,
-    borderRadius: BorderRadius.circular(50),
-    child: Container(
-      padding: const EdgeInsets.all(10),
-      decoration: const BoxDecoration(
-        shape: BoxShape.circle,
-        color: Colors.black12,
-      ),
-      child: Icon(
-        icon,
-        color: Colors.black87,
-        size: 22,
       ),
     ),
   );

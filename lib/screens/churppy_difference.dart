@@ -216,7 +216,7 @@ Widget _button(String text, Color color, VoidCallback onTap) {
           textAlign: TextAlign.center,
           style: GoogleFonts.lemonada(
             color: Colors.white,
-            fontSize: 12,
+            fontSize: 11,
             fontWeight: FontWeight.w600,
           ),
         ),

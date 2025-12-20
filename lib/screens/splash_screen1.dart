@@ -230,7 +230,7 @@ class _SplashScreen1State extends State<SplashScreen1>
 
             /// 🟣 Logo (slightly moved up)
             Align(
-              alignment: const Alignment(0, -0.15),
+              alignment: const Alignment(0, -0.20),
               child: Image.asset(
                 'assets/images/logo2.png',
                 width: screenW * 0.8,
@@ -390,7 +390,7 @@ class _SplashScreen1State extends State<SplashScreen1>
               textAlign: TextAlign.center,
               style: GoogleFonts.inter(
                 color: Colors.white,
-                fontSize: 14,
+                fontSize: 13,
                 fontWeight: FontWeight.w600,
                 letterSpacing: 0.5,
               ),
