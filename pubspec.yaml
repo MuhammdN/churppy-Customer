@@ -16,7 +16,8 @@ dependencies:
   http: ^1.2.2
   geocoding: ^3.0.0
   shared_preferences: ^2.3.2
-  flutter_stripe: ^10.2.0
+  flutter_stripe: 9.6.0
+
   google_fonts: ^6.2.1
   image_picker: ^1.1.2
   path_drawing: ^1.0.1

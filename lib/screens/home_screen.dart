@@ -665,22 +665,9 @@ class _HomeScreenState extends State<HomeScreen> {
   /// Horizontal Scrollable Filters
   Widget _categoryFilters(double Function(double) fs) {
     final filters = [
-      'All',
-      'Food Trucks',
-      'Cafés',
-      'Bakeries',
-      'Fast Food',
-      'Street Food',
-      'Desserts',
-      'Ice Cream',
-      'Restaurants',
-      'Bars & Pubs',
-      'Fine Dining',
-      'Buffet',
-      'Pizza',
-      'Delivery Available',
-      'Takeaway',
-      'Specials',
+      'Tee’s Tasty Kitchen',
+      'Churppy Treats',
+      
     ];
 
     return SizedBox(

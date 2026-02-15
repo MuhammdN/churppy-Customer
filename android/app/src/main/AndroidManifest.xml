@@ -7,6 +7,11 @@
         android:label="churppy_customer"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
+        
+        <meta-data
+            android:name="com.google.android.gms.client.serverClientId"
+            android:value="445644172348-mq8sc9p45k2u2m6dgb6gdk7t9bh4u3u8.apps.googleusercontent.com" />
+
         <activity
             android:name=".MainActivity"
             android:exported="true"

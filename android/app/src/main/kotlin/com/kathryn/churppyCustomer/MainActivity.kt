@@ -1,4 +1,4 @@
-package com.example.churppy_customer
+package com.kathryn.churppyCustomer
 
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.android.FlutterFragmentActivity
